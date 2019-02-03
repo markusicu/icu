@@ -216,7 +216,8 @@ public class XLocaleMatcherTest extends TestFmwk {
                 "ca_FR, ca_IT, ce, ce_RU, cgg, cgg_UG, chr, chr_US, ckb, ckb_IQ, ckb_IR, cs, cs_CZ, " +
                 "cu, cu_RU, cy, cy_GB, da, da_DK, da_GL, dav, dav_KE, de, de_AT, de_BE, de_CH, " +
                 "de_DE, de_LI, de_LU, dje, dje_NE, dsb, dsb_DE, dua, dua_CM, dyo, dyo_SN, dz, dz_BT, " +
-                "ebu, ebu_KE, ee, ee_GH, ee_TG, el, el_CY, el_GR, en, en_001, en_150, " +
+                // removed en_001 to avoid exact match
+                "ebu, ebu_KE, ee, ee_GH, ee_TG, el, el_CY, el_GR, en, en_150, " +
                 "en_AG, en_AI, en_AS, en_AT, en_AU, en_BB, en_BE, en_BI, en_BM, en_BS, en_BW, " +
                 "en_BZ, en_CA, en_CC, en_CH, en_CK, en_CM, en_CX, en_CY, en_DE, en_DG, en_DK, " +
                 "en_DM, en_ER, en_FI, en_FJ, en_FK, en_FM, en_GB, en_GD, en_GG, en_GH, en_GI, " +
@@ -292,6 +293,8 @@ public class XLocaleMatcherTest extends TestFmwk {
                 new PerfCase("fr_CA", "en", "fr", "fr_CA"),
                 // Unusual locale, no exact match.
                 new PerfCase("de_CA", "en", "de", "de"),
+                // World English maps to several region partitions.
+                new PerfCase("en_001", "en", "en", "en"),
                 // Ancient language with interesting subtags.
                 new PerfCase("egy_Copt_CY", "en", "af", "af")
         };
