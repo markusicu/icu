@@ -310,28 +310,28 @@ public class XLocaleMatcherTest extends TestFmwk {
             timeXLocaleMatcher(desired, matcherLong, WARM_UP_ITERATIONS);
             timeXLocaleMatcher(desired, matcherVeryLong, WARM_UP_ITERATIONS);
             long tns = timeXLocaleMatcher(desired, matcherShort, BENCHMARK_ITERATIONS);
-            System.out.format("New Duration (few  supported):\t%s\t%d nanos\n", desired, tns);
+            System.out.format("New Duration (few  supported):\t%s\t%d\tnanos\n", desired, tns);
             timeShortNew += tns;
             long tnl = timeXLocaleMatcher(desired, matcherLong, BENCHMARK_ITERATIONS);
-            System.out.format("New Duration (med. supported):\t%s\t%d nanos\n", desired, tnl);
+            System.out.format("New Duration (med. supported):\t%s\t%d\tnanos\n", desired, tnl);
             timeMediumNew += tnl;
             long tnv = timeXLocaleMatcher(desired, matcherVeryLong, BENCHMARK_ITERATIONS);
-            System.out.format("New Duration (many supported):\t%s\t%d nanos\n", desired, tnv);
+            System.out.format("New Duration (many supported):\t%s\t%d\tnanos\n", desired, tnv);
             timeLongNew += tnv;
 
             timeLocaleMatcher(desired, matcherShortOld, WARM_UP_ITERATIONS);
             timeLocaleMatcher(desired, matcherLongOld, WARM_UP_ITERATIONS);
             timeLocaleMatcher(desired, matcherVeryLongOld, WARM_UP_ITERATIONS);
             long tos = timeLocaleMatcher(desired, matcherShortOld, BENCHMARK_ITERATIONS);
-            System.out.format("Old Duration (few  supported):\t%s\t%d nanos  new/old=%d%%\n",
+            System.out.format("Old Duration (few  supported):\t%s\t%d\tnanos  new/old=%d%%\n",
                     desired, tos, (100 * tns) / tos);
             timeShortOld += tos;
             long tol = timeLocaleMatcher(desired, matcherLongOld, BENCHMARK_ITERATIONS);
-            System.out.format("Old Duration (med. supported):\t%s\t%d nanos  new/old=%d%%\n",
+            System.out.format("Old Duration (med. supported):\t%s\t%d\tnanos  new/old=%d%%\n",
                     desired, tol, (100 * tnl) / tol);
             timeMediumOld += tol;
             long tov = timeLocaleMatcher(desired, matcherVeryLongOld, BENCHMARK_ITERATIONS);
-            System.out.format("Old Duration (many supported):\t%s\t%d nanos  new/old=%d%%\n",
+            System.out.format("Old Duration (many supported):\t%s\t%d\tnanos  new/old=%d%%\n",
                     desired, tov, (100 * tnv) / tov);
             timeLongOld += tov;
     }
