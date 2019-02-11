@@ -16,6 +16,7 @@ import org.junit.runner.RunWith;
 
 import com.ibm.icu.dev.test.TestFmwk;
 import com.ibm.icu.impl.locale.XCldrStub.FileUtilities;
+import com.ibm.icu.impl.locale.XLikelySubtags;
 import com.ibm.icu.impl.locale.XLocaleDistance;
 import com.ibm.icu.impl.locale.XLocaleDistance.DistanceOption;
 import com.ibm.icu.impl.locale.XLocaleMatcher;
@@ -339,6 +340,8 @@ public class XLocaleMatcherTest extends TestFmwk {
 //        assertTrue("timeShortNew (=" + timeShortNew + ") < 25% of timeShortOld (=" + timeShortOld + ")", timeShortNew * 4 < timeShortOld);
 //        assertTrue("timeMediumNew (=" + timeMediumNew + ") < 25% of timeMediumOld (=" + timeMediumOld + ")", timeMediumNew * 4 < timeMediumOld);
 //        assertTrue("timeLongNew (=" + timeLongNew + ") < 25% of timeLongOld (=" + timeLongOld + ")", timeLongNew * 4 < timeLongOld);
+
+        maximizePerf();
     }
 
     private long timeXLocaleMatcher(ULocale desired, XLocaleMatcher matcher, int iterations) {
@@ -357,6 +360,37 @@ public class XLocaleMatcherTest extends TestFmwk {
         }
         long delta = System.nanoTime() - start;
         return (delta / iterations);
+    }
+
+    private void maximizePerf() {
+        final String tags = "af, am, ar, az, be, bg, bn, bs, ca, cs, cy, cy, da, de, " +
+                "el, en, en-GB, es, es-419, et, eu, fa, fi, fil, fr, ga, gl, gu, " +
+                "hi, hr, hu, hy, id, is, it, iw, ja, ka, kk, km, kn, ko, ky, lo, lt, lv, " +
+                "mk, ml, mn, mr, ms, my, ne, nl, no, pa, pl, pt, pt-PT, ro, ru, " +
+                "si, sk, sl, sq, sr, sr-Latn, sv, sw, ta, te, th, tr, uk, ur, uz, vi, " +
+                "zh-CN, zh-TW, zu";
+        LocalePriorityList list = LocalePriorityList.add(tags).build();
+        int few = 1000;
+        long t = timeMaximize(list, few);  // warm up
+        t = timeMaximize(list, few);  // measure for scale
+        long targetTime = 100000000L;  // 10^8 ns = 0.1s
+        int iterations = (int)((targetTime * few) / t);
+        t = timeMaximize(list, iterations);
+        int length = 0;
+        for (@SuppressWarnings("unused") ULocale locale : list) { ++length; }
+        System.out.println("maximize: " + (t / iterations / length) + " ns/locale: " +
+                t + " ns / " + iterations + " iterations / " + length + " locales");
+    }
+
+    // returns total ns not per iteration
+    private  static long timeMaximize(Iterable<ULocale> list, int iterations) {
+        long start = System.nanoTime();
+        for (int i = iterations; i > 0; --i) {
+            for (ULocale locale : list) {
+                XLikelySubtags.LSR.fromMaximalized(locale);
+            }
+        }
+        return System.nanoTime() - start;
     }
 
     private static final class TestCase implements Cloneable {
