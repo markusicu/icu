@@ -394,7 +394,7 @@ public class LocaleMatcher {
          * Adds another supported locale.
          * Duplicates are allowed, and are not removed.
          *
-         * @param locale the list of locale
+         * @param locale another locale
          * @return this Builder object
          * @draft ICU 65
          * @provisional This API might change or be removed in a future release.
@@ -411,7 +411,7 @@ public class LocaleMatcher {
          * Adds another supported locale.
          * Duplicates are allowed, and are not removed.
          *
-         * @param locale the list of locale
+         * @param locale another locale
          * @return this Builder object
          * @draft ICU 65
          * @provisional This API might change or be removed in a future release.

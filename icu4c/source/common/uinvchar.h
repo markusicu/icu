@@ -69,6 +69,28 @@ uprv_isInvariantUString(const UChar *s, int32_t length);
 #endif
 
 /**
+ * Returns true if c == '@' is possible.
+ * The @ sign is variant, and the @ sign used on one
+ * EBCDIC machine won't be compiled the same way on other EBCDIC based machines.
+ * @internal
+ */
+U_CFUNC UBool
+uprv_isEbcdicAtSign(char c);
+
+/**
+ * \def uprv_invCharToAscii
+ * Converts an invariant character to ASCII.
+ * @internal
+ */
+#if U_CHARSET_FAMILY==U_ASCII_FAMILY
+#   define uprv_isAtSign(c) ((c)=='@')
+#elif U_CHARSET_FAMILY==U_EBCDIC_FAMILY
+#   define uprv_isAtSign(c) uprv_isEbcdicAtSign(c)
+#else
+#   error Unknown charset family!
+#endif
+
+/**
  * Compare two EBCDIC invariant-character strings in ASCII order.
  * @internal
  */
@@ -84,6 +106,26 @@ uprv_compareInvEbcdicAsAscii(const char *s1, const char *s2);
 #   define uprv_compareInvCharsAsAscii(s1, s2) uprv_strcmp(s1, s2)
 #elif U_CHARSET_FAMILY==U_EBCDIC_FAMILY
 #   define uprv_compareInvCharsAsAscii(s1, s2) uprv_compareInvEbcdicAsAscii(s1, s2)
+#else
+#   error Unknown charset family!
+#endif
+
+/**
+ * Converts an EBCDIC invariant character to ASCII.
+ * @internal
+ */
+U_INTERNAL char U_EXPORT2
+uprv_ebcdicToAscii(char c);
+
+/**
+ * \def uprv_invCharToAscii
+ * Converts an invariant character to ASCII.
+ * @internal
+ */
+#if U_CHARSET_FAMILY==U_ASCII_FAMILY
+#   define uprv_invCharToAscii(c) (c)
+#elif U_CHARSET_FAMILY==U_EBCDIC_FAMILY
+#   define uprv_invCharToAscii(c) uprv_ebcdicToAscii(c)
 #else
 #   error Unknown charset family!
 #endif

@@ -1399,5 +1399,7 @@ Locale::getBaseName() const {
     return baseName;
 }
 
+Locale::Iterator::~Iterator() {}
+
 //eof
 U_NAMESPACE_END

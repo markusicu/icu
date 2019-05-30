@@ -1008,6 +1008,65 @@ public:
      */
     virtual UClassID getDynamicClassID() const;
 
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * A Locale iterator interface similar to a Java Iterator<Locale>.
+     * @draft ICU 65
+     */
+    class U_COMMON_API Iterator /* not : public UObject because this is an interface/mixin class */ {
+    public:
+        /** @draft ICU 65 */
+        virtual ~Iterator();
+
+        /**
+         * @return TRUE if next() can be called again.
+         * @draft ICU 65
+         */
+        virtual UBool hasNext() const = 0;
+
+        /**
+         * @return the next locale.
+         * @draft ICU 65
+         */
+        virtual const Locale &next() const = 0;
+    };
+
+    /**
+     * A generic Locale iterator implementation over Locale input iterators.
+     * @draft ICU 65
+     */
+    // TODO: UMemory?
+    template<typename Iter>
+    class RangeIterator : public Iterator {
+    public:
+        /**
+         * Constructs an iterator from a begin/end range.
+         * Each of the iterator parameter values must be an
+         * input iterator whose value is convertible to const Locale &.
+         *
+         * @param begin Start of range.
+         * @param end Exclusive end of range.
+         * @draft ICU 65
+         */
+        RangeIterator(Iter begin, Iter end) : it_(begin), end_(end) {}
+
+        /**
+         * @return TRUE if next() can be called again.
+         * @draft ICU 65
+         */
+        UBool hasNext() const override { it_ != end_; }
+
+        /**
+         * @return the next locale.
+         * @draft ICU 65
+         */
+        const Locale &next() const override { return *it_++; }
+
+    private:
+        Iter it_, end_;
+    };
+#endif  // U_HIDE_DRAFT_API
+
 protected: /* only protected for testing purposes. DO NOT USE. */
 #ifndef U_HIDE_INTERNAL_API
     /**

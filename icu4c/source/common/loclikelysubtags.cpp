@@ -1,83 +1,89 @@
-// © 2017 and later: Unicode, Inc. and others.
+// © 2019 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html#License
-package com.ibm.icu.impl.locale;
 
-import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.MissingResourceException;
-import java.util.TreeMap;
+// loclikelysubtags.h
+// created: 2019may08 Markus W. Scherer
 
-import com.ibm.icu.impl.ICUData;
-import com.ibm.icu.impl.ICUResourceBundle;
-import com.ibm.icu.impl.UResource;
-import com.ibm.icu.util.BytesTrie;
-import com.ibm.icu.util.ULocale;
+#ifndef __LOCLIKELYSUBTAGS_H__
+#define __LOCLIKELYSUBTAGS_H__
 
-public final class XLikelySubtags {
-    private static final String PSEUDO_ACCENTS_PREFIX = "'";  // -XA, -PSACCENT
-    private static final String PSEUDO_BIDI_PREFIX = "+";  // -XB, -PSBIDI
-    private static final String PSEUDO_CRACKED_PREFIX = ",";  // -XC, -PSCRACK
+#include "unicode/utypes.h"
+#include "unicode/bytestrie.h"
+#include "unicode/locid.h"
+#include "unicode/uobject.h"
+#include "unicode/ures.h"
+#include "charstr.h"
+#include "uinvchar.h"
 
-    public static final int SKIP_SCRIPT = 1;
+U_NAMESPACE_BEGIN
 
-    private static final boolean DEBUG_OUTPUT = LSR.DEBUG_OUTPUT;
+/** const char * keys & values. */
+class CharStringMap final : public UMemory {
+public:
+    CharStringMap();
+    CharStringMap(CharStringMap &&other);
+    CharStringMap(const CharStringMap &other) = delete;
+    ~CharStringMap();
 
-    // VisibleForTesting
-    public static final class Data {
-        public final Map<String, String> languageAliases;
-        public final Map<String, String> regionAliases;
-        public final byte[] trie;
-        public final LSR[] lsrs;
+    CharStringMap &operator=(CharStringMap &&other);
+    CharStringMap &operator=(const CharStringMap &other) = delete;
 
-        public Data(Map<String, String> languageAliases, Map<String, String> regionAliases,
-                byte[] trie, LSR[] lsrs) {
-            this.languageAliases = languageAliases;
-            this.regionAliases = regionAliases;
-            this.trie = trie;
-            this.lsrs = lsrs;
-        }
+    const char *get(const char *key);
+    // TODO: ownership?
+    void put(const char *key, const char *value, UErrorCode &errorCode);
 
-        private static UResource.Value getValue(UResource.Table table,
-                String key, UResource.Value value) {
-            if (!table.findValue(key, value)) {
-                throw new MissingResourceException(
-                        "langInfo.res missing data", "", "likely/" + key);
-            }
-            return value;
-        }
+private:
+};
 
+namespace {
+
+constexpr char PSEUDO_ACCENTS_PREFIX = '\'';  // -XA, -PSACCENT
+constexpr char PSEUDO_BIDI_PREFIX = '+';  // -XB, -PSBIDI
+constexpr char PSEUDO_CRACKED_PREFIX = ',';  // -XC, -PSCRACK
+
+}  // namespace
+
+class XLikelySubtags final : public UMemory {
+public:
+    static constexpr int32_t SKIP_SCRIPT = 1;
+
+    // VisibleForTesting -- TODO: ??
+    static struct Data final {
+        CharStringMap languageAliases;
+        CharStringMap regionAliases;
+        BytesTrie trie;
+        const LSR *lsrs;
+
+        Data(CharStringMap langAliases, CharStringMap rAliases, BytesTrie trie, const LSR lsrs[]) :
+                languageAliases(langAliases),
+                regionAliases(rAliases),
+                trie(trie),
+                lsrs(lsrs) {}
+#if 0
         // VisibleForTesting
-        public static Data load() throws MissingResourceException {
+        public static Data load(UErrorCode &errorCode) {
             ICUResourceBundle langInfo = ICUResourceBundle.getBundleInstance(
                     ICUData.ICU_BASE_NAME, "langInfo",
                     ICUResourceBundle.ICU_DATA_CLASS_LOADER, ICUResourceBundle.OpenType.DIRECT);
             UResource.Value value = langInfo.getValueWithFallback("likely");
             UResource.Table likelyTable = value.getTable();
 
-            Map<String, String> languageAliases;
+            CharStringMap languageAliases;
             if (likelyTable.findValue("languageAliases", value)) {
                 String[] pairs = value.getStringArray();
                 languageAliases = new HashMap<>(pairs.length / 2);
                 for (int i = 0; i < pairs.length; i += 2) {
-                    languageAliases.put(pairs[i], pairs[i + 1]);
+                    languageAliases.put(pairs[i], pairs[i + 1], errorCode);
                 }
-            } else {
-                languageAliases = Collections.emptyMap();
             }
 
-            Map<String, String> regionAliases;
+            CharStringMap regionAliases;
             if (likelyTable.findValue("regionAliases", value)) {
                 String[] pairs = value.getStringArray();
                 regionAliases = new HashMap<>(pairs.length / 2);
                 for (int i = 0; i < pairs.length; i += 2) {
-                    regionAliases.put(pairs[i], pairs[i + 1]);
+                    regionAliases.put(pairs[i], pairs[i + 1], errorCode);
                 }
-            } else {
-                regionAliases = Collections.emptyMap();
             }
 
             ByteBuffer buffer = getValue(likelyTable, "trie", value).getBinary();
@@ -92,44 +98,115 @@ public final class XLikelySubtags {
 
             return new Data(languageAliases, regionAliases, trie, lsrs);
         }
-
-        @Override
-        public boolean equals(Object other) {
-            if (this == other) { return true; }
-            if (!getClass().equals(other.getClass())) { return false; }
-            Data od = (Data)other;
-            return
-                    languageAliases.equals(od.languageAliases) &&
-                    regionAliases.equals(od.regionAliases) &&
-                    Arrays.equals(trie, od.trie) &&
-                    Arrays.equals(lsrs, od.lsrs);
+#endif
+    private:
+#if 0
+        static UResource.Value getValue(UResource.Table table,
+                const char *key, UResource.Value value) {
+            if (!table.findValue(key, value)) {
+                throw new MissingResourceException(
+                        "langInfo.res missing data", "", "likely/" + key);
+            }
+            return value;
         }
+#endif
     }
 
     // VisibleForTesting
-    public static final XLikelySubtags INSTANCE = new XLikelySubtags(Data.load());
+    // TODO: public static final XLikelySubtags INSTANCE = new XLikelySubtags(Data.load());
+    static const XLikelySubtags &getSingleton();
 
-    private final Map<String, String> languageAliases;
-    private final Map<String, String> regionAliases;
+    // VisibleForTesting
+    LSR makeMaximizedLsrFrom(const Locale &locale) const {
+        const char *name = locale.getName();
+        if (uprv_isAtSign(name[0]) && name[1] == 'x' && name[2] == '=') {  // name.startsWith("@x=")
+            // Private use language tag x-subtag-subtag...
+            return new LSR(name, "", "");
+            // TODO: think about lifetime of LSR.language
+        }
+        return makeMaximizedLsr(locale.getLanguage(), locale.getScript(), locale.getCountry(),
+                                locale.getVariant());
+    }
+
+    LSR makeMaximizedLsrFrom(Locale locale) const {
+        const char *tag = locale.toLanguageTag();
+        if (tag.startsWith("x-")) {
+            // Private use language tag x-subtag-subtag...
+            return new LSR(tag, "", "");
+        }
+        return makeMaximizedLsr(locale.getLanguage(), locale.getScript(), locale.getCountry(),
+                locale.getVariant());
+    }
+#if 0
+    // TODO: declare here, define last
+    LSR minimizeSubtags(const char *languageIn, const char *scriptIn, const char *regionIn,
+                        ULocale.Minimize fieldToFavor) const {
+        LSR result = maximize(languageIn, scriptIn, regionIn);
+
+        // We could try just a series of checks, like:
+        // LSR result2 = addLikelySubtags(languageIn, "", "");
+        // if result.equals(result2) return result2;
+        // However, we can optimize 2 of the cases:
+        //   (languageIn, "", "")
+        //   (languageIn, "", regionIn)
+
+        // value00 = lookup(result.language, "", "")
+        BytesTrie iter = new BytesTrie(trie);
+        int value = trieNext(iter, result.language, 0);
+        assert value >= 0;
+        if (value == 0) {
+            value = trieNext(iter, "", 0);
+            assert value >= 0;
+            if (value == 0) {
+                value = trieNext(iter, "", 0);
+            }
+        }
+        assert value > 0;
+        LSR value00 = lsrs[value];
+        boolean favorRegionOk = false;
+        if (result.script.equals(value00.script)) { //script is default
+            if (result.region.equals(value00.region)) {
+                return new LSR(result.language, "", "");
+            } else if (fieldToFavor == ULocale.Minimize.FAVOR_REGION) {
+                return new LSR(result.language, "", result.region);
+            } else {
+                favorRegionOk = true;
+            }
+        }
+
+        // The last case is not as easy to optimize.
+        // Maybe do later, but for now use the straightforward code.
+        LSR result2 = maximize(languageIn, scriptIn, "");
+        if (result2.equals(result)) {
+            return new LSR(result.language, result.script, "");
+        } else if (favorRegionOk) {
+            return new LSR(result.language, "", result.region);
+        }
+        return result;
+    }
+#endif
+private:
+    CharStringMap languageAliases;
+    CharStringMap regionAliases;
 
     // The trie maps each lang+script+region (encoded in ASCII) to an index into lsrs.
     // There is also a trie value for each intermediate lang and lang+script.
     // '*' is used instead of "und", "Zzzz"/"" and "ZZ"/"".
-    private final BytesTrie trie;
-    private final long trieUndState;
-    private final long trieUndZzzzState;
-    private final int defaultLsrIndex;
-    private final long[] trieFirstLetterStates = new long[26];
-    private final LSR[] lsrs;
+    BytesTrie trie;
+    long trieUndState;
+    long trieUndZzzzState;
+    int defaultLsrIndex;
+    long[] trieFirstLetterStates = new long[26];
+    LSR[] lsrs;
 
-    private XLikelySubtags(XLikelySubtags.Data data) {
+    XLikelySubtags(XLikelySubtags.Data data) {
         languageAliases = data.languageAliases;
         regionAliases = data.regionAliases;
         trie = new BytesTrie(data.trie, 0);
         lsrs = data.lsrs;
 
         // Cache the result of looking up language="und" encoded as "*", and "und-Zzzz" ("**").
-        BytesTrie.Result result = trie.next('*');
+        UStringTrieResult result = trie.next('*');
         assert result.hasNext();
         trieUndState = trie.getState64();
         result = trie.next('*');
@@ -142,7 +219,7 @@ public final class XLikelySubtags {
 
         for (char c = 'a'; c <= 'z'; ++c) {
             result = trie.next(c);
-            if (result == BytesTrie.Result.NO_VALUE) {
+            if (result == USTRINGTRIE_NO_VALUE) {
                 trieFirstLetterStates[c - 'a'] = trie.getState64();
             }
             trie.reset();
@@ -156,14 +233,15 @@ public final class XLikelySubtags {
         }
     }
 
+#if 0
     /**
      * Implementation of LocaleMatcher.canonicalize(ULocale).
      */
     public ULocale canonicalize(ULocale locale) {
-        String lang = locale.getLanguage();
-        String lang2 = languageAliases.get(lang);
-        String region = locale.getCountry();
-        String region2 = regionAliases.get(region);
+        const char *lang = locale.getLanguage();
+        const char *lang2 = languageAliases.get(lang);
+        const char *region = locale.getCountry();
+        const char *region2 = regionAliases.get(region);
         if (lang2 != null || region2 != null) {
             return new ULocale(
                 lang2 == null ? lang : lang2,
@@ -172,34 +250,15 @@ public final class XLikelySubtags {
         }
         return locale;
     }
+#endif
 
-    private static String getCanonical(Map<String, String> aliases, String alias) {
-        String canonical = aliases.get(alias);
-        return canonical == null ? alias : canonical;
+    static const char *getCanonical(CharStringMap aliases, const char *alias) {
+        const char *canonical = aliases.get(alias);
+        return canonical == nullptr ? alias : canonical;
     }
 
-    // VisibleForTesting
-    public LSR makeMaximizedLsrFrom(ULocale locale) {
-        String name = locale.getName();
-        if (name.startsWith("@x=")) {
-            // Private use language tag x-subtag-subtag...
-            return new LSR(name, "", "");
-        }
-        return makeMaximizedLsr(locale.getLanguage(), locale.getScript(), locale.getCountry(),
-                locale.getVariant());
-    }
-
-    public LSR makeMaximizedLsrFrom(Locale locale) {
-        String tag = locale.toLanguageTag();
-        if (tag.startsWith("x-")) {
-            // Private use language tag x-subtag-subtag...
-            return new LSR(tag, "", "");
-        }
-        return makeMaximizedLsr(locale.getLanguage(), locale.getScript(), locale.getCountry(),
-                locale.getVariant());
-    }
-
-    private LSR makeMaximizedLsr(String language, String script, String region, String variant) {
+    LSR makeMaximizedLsr(const char *language, const char *script, const char *region,
+                         const char *variant) const {
         // Handle pseudolocales like en-XA, ar-XB, fr-PSCRACK.
         // They should match only themselves,
         // not other locales with what looks like the same language and script subtags.
@@ -238,13 +297,13 @@ public final class XLikelySubtags {
         language = getCanonical(languageAliases, language);
         // (We have no script mappings.)
         region = getCanonical(regionAliases, region);
-        return maximize(language, script, region);
+        return INSTANCE.maximize(language, script, region);
     }
 
     /**
      * Raw access to addLikelySubtags. Input must be in canonical format, eg "en", not "eng" or "EN".
      */
-    private LSR maximize(String language, String script, String region) {
+    LSR maximize(const char *language, const char *script, const char *region) {
         if (language.equals("und")) {
             language = "";
         }
@@ -352,16 +411,19 @@ public final class XLikelySubtags {
         return new LSR(language, script, region);
     }
 
-    private static final int trieNext(BytesTrie iter, String s, int i) {
-        BytesTrie.Result result;
-        if (s.isEmpty()) {
-            result = iter.next('*');
+    static int trieNext(BytesTrie &iter, const char *s, int32_t i) {
+        UStringTrieResult result;
+        uint8_t c;
+        if ((c = s[i]) == 0) {
+            result = iter.next(u'*');
         } else {
-            int end = s.length() - 1;
-            for (;; ++i) {
-                int c = s.charAt(i);
-                if (i < end) {
-                    if (!iter.next(c).hasNext()) {
+            for (;;) {
+                c = uprv_invCharToAscii(c);
+                // EBCDIC: If s[i] is not an invariant character,
+                // then c is now 0 and will simply not match anything, which is harmless.
+                uint8_t next = s[++i];
+                if (next != 0) {
+                    if (!USTRINGTRIE_HAS_NEXT(iter.next(c))) {
                         return -1;
                     }
                 } else {
@@ -369,90 +431,21 @@ public final class XLikelySubtags {
                     result = iter.next(c | 0x80);
                     break;
                 }
+                c = next;
             }
         }
         switch (result) {
-        case NO_MATCH: return -1;
-        case NO_VALUE: return 0;
-        case INTERMEDIATE_VALUE:
-            assert iter.getValue() == SKIP_SCRIPT;
+        case USTRINGTRIE_NO_MATCH: return -1;
+        case USTRINGTRIE_NO_VALUE: return 0;
+        case USTRINGTRIE_INTERMEDIATE_VALUE:
+            U_ASSERT(iter.getValue() == SKIP_SCRIPT);
             return SKIP_SCRIPT;
-        case FINAL_VALUE: return iter.getValue();
+        case USTRINGTRIE_FINAL_VALUE: return iter.getValue();
         default: return -1;
         }
     }
+};
 
-    LSR minimizeSubtags(String languageIn, String scriptIn, String regionIn,
-            ULocale.Minimize fieldToFavor) {
-        LSR result = maximize(languageIn, scriptIn, regionIn);
+U_NAMESPACE_END
 
-        // We could try just a series of checks, like:
-        // LSR result2 = addLikelySubtags(languageIn, "", "");
-        // if result.equals(result2) return result2;
-        // However, we can optimize 2 of the cases:
-        //   (languageIn, "", "")
-        //   (languageIn, "", regionIn)
-
-        // value00 = lookup(result.language, "", "")
-        BytesTrie iter = new BytesTrie(trie);
-        int value = trieNext(iter, result.language, 0);
-        assert value >= 0;
-        if (value == 0) {
-            value = trieNext(iter, "", 0);
-            assert value >= 0;
-            if (value == 0) {
-                value = trieNext(iter, "", 0);
-            }
-        }
-        assert value > 0;
-        LSR value00 = lsrs[value];
-        boolean favorRegionOk = false;
-        if (result.script.equals(value00.script)) { //script is default
-            if (result.region.equals(value00.region)) {
-                return new LSR(result.language, "", "");
-            } else if (fieldToFavor == ULocale.Minimize.FAVOR_REGION) {
-                return new LSR(result.language, "", result.region);
-            } else {
-                favorRegionOk = true;
-            }
-        }
-
-        // The last case is not as easy to optimize.
-        // Maybe do later, but for now use the straightforward code.
-        LSR result2 = maximize(languageIn, scriptIn, "");
-        if (result2.equals(result)) {
-            return new LSR(result.language, result.script, "");
-        } else if (favorRegionOk) {
-            return new LSR(result.language, "", result.region);
-        }
-        return result;
-    }
-
-    private Map<String, LSR> getTable() {
-        Map<String, LSR> map = new TreeMap<>();
-        StringBuilder sb = new StringBuilder();
-        for (BytesTrie.Entry entry : trie) {
-            sb.setLength(0);
-            int length = entry.bytesLength();
-            for (int i = 0; i < length;) {
-                byte b = entry.byteAt(i++);
-                if (b == '*') {
-                    sb.append("*-");
-                } else if (b >= 0) {
-                    sb.append((char) b);
-                } else {  // end of subtag
-                    sb.append((char) (b & 0x7f)).append('-');
-                }
-            }
-            assert sb.length() > 0 && sb.charAt(sb.length() - 1) == '-';
-            sb.setLength(sb.length() - 1);
-            map.put(sb.toString(), lsrs[entry.value]);
-        }
-        return map;
-    }
-
-    @Override
-    public String toString() {
-        return getTable().toString();
-    }
-}
+#endif  // __LOCLIKELYSUBTAGS_H__
