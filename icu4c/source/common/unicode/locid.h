@@ -1028,16 +1028,15 @@ public:
          * @return the next locale.
          * @draft ICU 65
          */
-        virtual const Locale &next() const = 0;
+        virtual const Locale &next() = 0;
     };
 
     /**
      * A generic Locale iterator implementation over Locale input iterators.
      * @draft ICU 65
      */
-    // TODO: UMemory?
     template<typename Iter>
-    class RangeIterator : public Iterator {
+    class RangeIterator : public Iterator, public UMemory {
     public:
         /**
          * Constructs an iterator from a begin/end range.
@@ -1060,7 +1059,7 @@ public:
          * @return the next locale.
          * @draft ICU 65
          */
-        const Locale &next() const override { return *it_++; }
+        const Locale &next() override { return *it_++; }
 
     private:
         Iter it_, end_;

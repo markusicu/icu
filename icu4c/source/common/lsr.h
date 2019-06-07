@@ -18,20 +18,24 @@ struct LSR final : public UMemory {
     const char *language;
     const char *script;
     const char *region;
+    char *owned;
     /** Index for region, negative if ill-formed. @see indexForRegion */
     int32_t regionIndex;
 
-    LSR(const char *lang, const char *scr, const char *r) {
-        language = lang;
-        script = scr;
-        region = r;
-        regionIndex = indexForRegion(region);
-    }
-    LSR(LSR &&other);
+    /** Constructor which aliases all subtag pointers. */
+    LSR(const char *lang, const char *scr, const char *r) :
+            language(lang),  script(scr), region(r), owned(nullptr),
+            regionIndex(indexForRegion(region)) {}
+    /**
+     * Constructor which prepends the prefix to the language and script,
+     * copies those into owned memory, and aliases the region.
+     */
+    LSR(char prefix, const char *lang, const char *scr, const char *r, UErrorCode &errorCode);
+    LSR(LSR &&other) U_NOEXCEPT;
     LSR(const LSR &other) = delete;
     ~LSR();
 
-    LSR &operator=(LSR &&other);
+    LSR &operator=(LSR &&other) U_NOEXCEPT;
     LSR &operator=(const LSR &other) = delete;
 
     /**
@@ -39,46 +43,12 @@ struct LSR final : public UMemory {
      * Do not rely on a particular region->index mapping; it may change.
      * Returns 0 for ill-formed strings.
      */
-    static int32_t indexForRegion(const char *region) {
-        int32_t c = region[0];
-        int32_t a = c - '0';
-        if (0 <= a && a <= 9) {  // digits: "419"
-            int32_t b = region[1] - '0';
-            if (b < 0 || 9 < b) { return 0; }
-            c = region[2] - '0';
-            if (c < 0 || 9 < c || region[3] != 0) { return 0; }
-            return (10 * a + b) * 10 + c + 1;
-        } else {  // letters: "DE"
-            a = upperOrdinal(c);
-            if (a < 0 || 25 < a) { return 0; }
-            int32_t b = upperOrdinal(region[1]);
-            if (b < 0 || 25 < b || region[2] != 0) { return 0; }
-            return 26 * a + b + 1001;
-        }
-        return 0;
-    }
+    static int32_t indexForRegion(const char *region);
 
     UBool operator==(const LSR &other);
 
     inline UBool operator!=(const LSR &other) {
         return !operator==(other);
-    }
-
-private:
-    // Like uinvchar.h U_UPPER_ORDINAL(x) but with validation.
-    // Returns 0..25 for A..Z else a value outside 0..25.
-    static inline int32_t upperOrdinal(int32_t c) {
-#if U_CHARSET_FAMILY==U_ASCII_FAMILY
-        return c - 'A';
-#elif U_CHARSET_FAMILY==U_EBCDIC_FAMILY
-        if (c <= 'I') { return c - 'A'; }
-        if (c < 'J') { return -1; }
-        if (c <= 'R') { return c - 'J' + 9; }
-        if (c < 'S') { return -1; }
-        return c - 'S' + 18;
-#else
-#   error Unknown charset family!
-#endif
     }
 };
 
