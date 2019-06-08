@@ -74,6 +74,8 @@ private:
      * Raw access to addLikelySubtags. Input must be in canonical format, eg "en", not "eng" or "EN".
      */
     LSR maximize(const char *language, const char *script, const char *region) const;
+
+    static int32_t trieNext(BytesTrie &iter, const char *s, int32_t i);
 };
 
 U_NAMESPACE_END

@@ -162,40 +162,6 @@ const char *getCanonical(const CharStringMap &aliases, const char *alias) {
     return canonical == nullptr ? alias : canonical;
 }
 
-int32_t trieNext(BytesTrie &iter, const char *s, int32_t i) {
-    UStringTrieResult result;
-    uint8_t c;
-    if ((c = s[i]) == 0) {
-        result = iter.next(u'*');
-    } else {
-        for (;;) {
-            c = uprv_invCharToAscii(c);
-            // EBCDIC: If s[i] is not an invariant character,
-            // then c is now 0 and will simply not match anything, which is harmless.
-            uint8_t next = s[++i];
-            if (next != 0) {
-                if (!USTRINGTRIE_HAS_NEXT(iter.next(c))) {
-                    return -1;
-                }
-            } else {
-                // last character of this subtag
-                result = iter.next(c | 0x80);
-                break;
-            }
-            c = next;
-        }
-    }
-    switch (result) {
-    case USTRINGTRIE_NO_MATCH: return -1;
-    case USTRINGTRIE_NO_VALUE: return 0;
-    case USTRINGTRIE_INTERMEDIATE_VALUE:
-        U_ASSERT(iter.getValue() == XLikelySubtags::SKIP_SCRIPT);
-        return XLikelySubtags::SKIP_SCRIPT;
-    case USTRINGTRIE_FINAL_VALUE: return iter.getValue();
-    default: return -1;
-    }
-}
-
 }  // namespace
 
 LSR XLikelySubtags::makeMaximizedLsr(const char *language, const char *script, const char *region,
@@ -347,6 +313,40 @@ LSR XLikelySubtags::maximize(const char *language, const char *script, const cha
         region = result.region;
     }
     return LSR(language, script, region);
+}
+
+int32_t XLikelySubtags::trieNext(BytesTrie &iter, const char *s, int32_t i) {
+    UStringTrieResult result;
+    uint8_t c;
+    if ((c = s[i]) == 0) {
+        result = iter.next(u'*');
+    } else {
+        for (;;) {
+            c = uprv_invCharToAscii(c);
+            // EBCDIC: If s[i] is not an invariant character,
+            // then c is now 0 and will simply not match anything, which is harmless.
+            uint8_t next = s[++i];
+            if (next != 0) {
+                if (!USTRINGTRIE_HAS_NEXT(iter.next(c))) {
+                    return -1;
+                }
+            } else {
+                // last character of this subtag
+                result = iter.next(c | 0x80);
+                break;
+            }
+            c = next;
+        }
+    }
+    switch (result) {
+    case USTRINGTRIE_NO_MATCH: return -1;
+    case USTRINGTRIE_NO_VALUE: return 0;
+    case USTRINGTRIE_INTERMEDIATE_VALUE:
+        U_ASSERT(iter.getValue() == SKIP_SCRIPT);
+        return SKIP_SCRIPT;
+    case USTRINGTRIE_FINAL_VALUE: return iter.getValue();
+    default: return -1;
+    }
 }
 
 #if 0

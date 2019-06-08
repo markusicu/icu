@@ -90,7 +90,7 @@ resource.o uresbund.o ures_cnv.o uresdata.o resbund.o resbund_cnv.o \
 ucurr.o \
 localebuilder.o \
 messagepattern.o ucat.o locmap.o uloc.o locid.o locutil.o locavailable.o locdispnames.o locdspnm.o loclikely.o locresdata.o \
-lsr.o loclikelysubtags.o localematcher.o \
+lsr.o loclikelysubtags.o locdistance.o localematcher.o \
 bytestream.o stringpiece.o bytesinkutil.o \
 stringtriebuilder.o bytestriebuilder.o \
 bytestrie.o bytestrieiterator.o \

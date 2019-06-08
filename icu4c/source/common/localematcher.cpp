@@ -11,6 +11,9 @@
 #include "unicode/localematcher.h"
 #include "unicode/locid.h"
 #include "unicode/uobject.h"
+#include "loclikelysubtags.h"
+#include "locdistance.h"
+#include "lsr.h"
 
 U_NAMESPACE_BEGIN
 

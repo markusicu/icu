@@ -19,7 +19,7 @@ import com.ibm.icu.util.LocaleMatcher.FavorSubtag;
 import com.ibm.icu.util.ULocale;
 
 /**
- * Off-line-built data for LocaleMatcher.
+ * Offline-built data for LocaleMatcher.
  * Mostly but not only the data for mapping locales to their maximized forms.
  */
 public class LocaleDistance {
