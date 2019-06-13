@@ -897,7 +897,7 @@ public class LocaleMatcherTest extends TestFmwk {
             }
             if (!test.expCombined.isEmpty()) {
                 ULocale expCombined = getULocaleOrNull(test.expCombined);
-                ULocale combined = result.makeServiceULocale();
+                ULocale combined = result.makeResolvedULocale();
                 assertEquals("combined", expCombined, combined);
             }
         }

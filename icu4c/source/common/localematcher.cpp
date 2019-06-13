@@ -18,11 +18,36 @@
 
 #define UND_LSR LSR("und", "", "")
 
+/**
+ * Indicator for the lifetime of desired-locale objects passed into the LocaleMatcher.
+ *
+ * @draft ICU 65
+ */
+enum ULocMatchLifetime {
+    /**
+     * Locale objects are temporary.
+     * The matcher will make a copy of a locale that will be used beyond one function call.
+     *
+     * @draft ICU 65
+     */
+    ULOCMATCH_TEMPORARY_LOCALES,
+    /**
+     * Locale objects are stored at least as long as the matcher is used.
+     * The matcher will keep only a pointer to a locale that will be used beyond one function call,
+     * avoiding a copy.
+     *
+     * @draft ICU 65
+     */
+    ULOCMATCH_STORED_LOCALES  // TODO: permanent? cached? clone?
+};
+#ifndef U_IN_DOXYGEN
+typedef enum ULocMatchLifetime ULocMatchLifetime;
+#endif
+
 U_NAMESPACE_BEGIN
 
 #if 0
 
-// TODO class U_COMMON_API LocaleMatcher final : public UMemory {
 private static final LSR UND_LSR = new LSR("und","","");
 private static final ULocale UND_ULOCALE = new ULocale("und");
 private static final Locale UND_LOCALE = new Locale("und");
@@ -36,7 +61,7 @@ LocaleMatcher::Result::~Result() {
 }
 
 #if 0
-Locale LocaleMatcher::Result::makeServiceLocale() {
+Locale LocaleMatcher::Result::makeResolvedLocale() {
     ULocale bestDesired = getDesiredULocale();
     ULocale serviceLocale = supportedULocale;
     if (!serviceLocale.equals(bestDesired) && bestDesired != null) {
@@ -243,7 +268,9 @@ public:
             likelySubtags(likelySubtags), locales(locales), lifetime(lifetime) {}
 
     ~LocaleLsrIterator() {
-        delete remembered;
+        if (lifetime == ULOCMATCH_TEMPORARY_LOCALES) {
+            delete remembered;
+        }
     }
 
     bool hasNext() const {
@@ -317,7 +344,6 @@ LocaleMatcher::Result LocaleMatcher::getBestMatchResult(
         getMaximalLsrOrUnd(likelySubtags, desiredLocale, errorCode),
         nullptr, errorCode);
     if (U_FAILURE(errorCode) || suppIndex < 0) {
-        // TODO Java: no need to return UND_LOCALE
         return Result(nullptr, defaultLocale, -1, defaultLocaleIndex, FALSE);
     } else {
         return Result(&desiredLocale, supportedLocales[suppIndex], 0, suppIndex, FALSE);
@@ -325,17 +351,17 @@ LocaleMatcher::Result LocaleMatcher::getBestMatchResult(
 }
 
 LocaleMatcher::Result LocaleMatcher::getBestMatchResult(
-        Locale::Iterator &desiredLocales, ULocMatchLifetime lifetime, UErrorCode &errorCode) const {
+        Locale::Iterator &desiredLocales, UErrorCode &errorCode) const {
     if (!desiredLocales.hasNext()) {
         return Result(nullptr, defaultLocale, -1, defaultLocaleIndex, FALSE);
     }
-    LocaleLsrIterator lsrIter(likelySubtags, desiredLocales, lifetime);
+    LocaleLsrIterator lsrIter(likelySubtags, desiredLocales, ULOCMATCH_TEMPORARY_LOCALES);
     int32_t suppIndex = getBestSuppIndex(lsrIter.next(errorCode), &lsrIter, errorCode);
     if (U_FAILURE(errorCode) || suppIndex < 0) {
         return Result(nullptr, defaultLocale, -1, defaultLocaleIndex, FALSE);
     } else {
         return Result(lsrIter.orphanRemembered(), supportedLocales[suppIndex],
-                      lsrIter.getBestDesiredIndex(), suppIndex, lifetime == ULOCMATCH_TEMPORARY_LOCALES);
+                      lsrIter.getBestDesiredIndex(), suppIndex, TRUE);
     }
 }
 #if 0

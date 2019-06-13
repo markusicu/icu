@@ -254,13 +254,13 @@ public class LocaleMatcher {
          * May replace some fields of the supported locale.
          * The result is the locale that should be used for date and number formatting, collation, etc.
          *
-         * <p>Example: desired=ar-SA-u-nu-latn, supported=ar-EG, service locale=ar-EG-u-nu-latn
+         * <p>Example: desired=ar-SA-u-nu-latn, supported=ar-EG, resolved locale=ar-EG-u-nu-latn
          *
-         * @return the service locale, combining the best-matching desired and supported locales.
+         * @return a locale combining the best-matching desired and supported locales.
          * @draft ICU 65
          * @provisional This API might change or be removed in a future release.
          */
-        public ULocale makeServiceULocale() {
+        public ULocale makeResolvedULocale() {
             ULocale bestDesired = getDesiredULocale();
             ULocale serviceLocale = supportedULocale;
             if (!serviceLocale.equals(bestDesired) && bestDesired != null) {
@@ -299,14 +299,14 @@ public class LocaleMatcher {
          * The result is the locale that should be used for
          * date and number formatting, collation, etc.
          *
-         * <p>Example: desired=ar-SA-u-nu-latn, supported=ar-EG, service locale=ar-EG-u-nu-latn
+         * <p>Example: desired=ar-SA-u-nu-latn, supported=ar-EG, resolved locale=ar-EG-u-nu-latn
          *
-         * @return the service locale, combining the best-matching desired and supported locales.
+         * @return a locale combining the best-matching desired and supported locales.
          * @draft ICU 65
          * @provisional This API might change or be removed in a future release.
          */
-        public Locale makeServiceLocale() {
-            return makeServiceULocale().toLocale();
+        public Locale makeResolvedLocale() {
+            return makeResolvedULocale().toLocale();
         }
     }
 
@@ -808,9 +808,13 @@ public class LocaleMatcher {
         return suppIndex >= 0 ? supportedLocales[suppIndex] : defaultLocale;
     }
 
+    private Result defaultResult() {
+        return new Result(null, defaultULocale, null, defaultLocale, -1, defaultLocaleIndex);
+    }
+
     private Result makeResult(ULocale desiredLocale, ULocaleLsrIterator lsrIter, int suppIndex) {
         if (suppIndex < 0) {
-            return new Result(null, defaultULocale, null, defaultLocale, -1, defaultLocaleIndex);
+            return defaultResult();
         } else if (desiredLocale != null) {
             return new Result(desiredLocale, supportedULocales[suppIndex],
                     null, supportedLocales[suppIndex], 0, suppIndex);
@@ -822,7 +826,7 @@ public class LocaleMatcher {
 
     private Result makeResult(Locale desiredLocale, LocaleLsrIterator lsrIter, int suppIndex) {
         if (suppIndex < 0) {
-            return new Result(null, defaultULocale, null, defaultLocale, -1, defaultLocaleIndex);
+            return defaultResult();
         } else if (desiredLocale != null) {
             return new Result(null, supportedULocales[suppIndex],
                     desiredLocale, supportedLocales[suppIndex], 0, suppIndex);
@@ -858,7 +862,7 @@ public class LocaleMatcher {
     public Result getBestMatchResult(Iterable<ULocale> desiredLocales) {
         Iterator<ULocale> desiredIter = desiredLocales.iterator();
         if (!desiredIter.hasNext()) {
-            return makeResult(UND_ULOCALE, null, -1);
+            return defaultResult();
         }
         ULocaleLsrIterator lsrIter = new ULocaleLsrIterator(desiredIter);
         LSR desiredLSR = lsrIter.next();
@@ -891,7 +895,7 @@ public class LocaleMatcher {
     public Result getBestLocaleResult(Iterable<Locale> desiredLocales) {
         Iterator<Locale> desiredIter = desiredLocales.iterator();
         if (!desiredIter.hasNext()) {
-            return makeResult(UND_LOCALE, null, -1);
+            return defaultResult();
         }
         LocaleLsrIterator lsrIter = new LocaleLsrIterator(desiredIter);
         LSR desiredLSR = lsrIter.next();

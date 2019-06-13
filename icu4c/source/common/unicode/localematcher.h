@@ -85,32 +85,6 @@ enum ULocMatchDemotion {
 typedef enum ULocMatchDemotion ULocMatchDemotion;
 #endif
 
-/**
- * Indicator for the lifetime of desired-locale objects passed into the LocaleMatcher.
- *
- * @draft ICU 65
- */
-enum ULocMatchLifetime {
-    /**
-     * Locale objects are temporary.
-     * The matcher will make a copy of a locale that will be used beyond one function call.
-     *
-     * @draft ICU 65
-     */
-    ULOCMATCH_TEMPORARY_LOCALES,
-    /**
-     * Locale objects are stored at least as long as the matcher is used.
-     * The matcher will keep only a pointer to a locale that will be used beyond one function call,
-     * avoiding a copy.
-     *
-     * @draft ICU 65
-     */
-    ULOCMATCH_STORED_LOCALES  // TODO: permanent? cached? clone?
-};
-#ifndef U_IN_DOXYGEN
-typedef enum ULocMatchLifetime ULocMatchLifetime;
-#endif
-
 U_NAMESPACE_BEGIN
 
 struct LSR;
@@ -243,12 +217,12 @@ public:
          * May replace some fields of the supported locale.
          * The result is the locale that should be used for date and number formatting, collation, etc.
          *
-         * <p>Example: desired=ar-SA-u-nu-latn, supported=ar-EG, service locale=ar-EG-u-nu-latn
+         * <p>Example: desired=ar-SA-u-nu-latn, supported=ar-EG, resolved locale=ar-EG-u-nu-latn
          *
-         * @return the service locale, combining the best-matching desired and supported locales.
+         * @return a locale combining the best-matching desired and supported locales.
          * @draft ICU 65
          */
-        Locale makeServiceLocale() const;
+        Locale makeResolvedLocale() const;
 
     private:
         Result(const Locale *desired, const Locale *supported,
@@ -331,6 +305,30 @@ public:
         Builder &setSupportedLocales(Locale::Iterator &locales);
 
         /**
+         * Copies the supported locales from the begin/end range, preserving iteration order.
+         * Clears any previously set/added supported locales first.
+         * Duplicates are allowed, and are not removed.
+         *
+         * Each of the iterator parameter values must be an
+         * input iterator whose value is convertible to const Locale &.
+         *
+         * @param begin Start of range.
+         * @param end Exclusive end of range.
+         * @return this Builder object
+         * @draft ICU 65
+         */
+        template<typename Iter>
+        Builder &setSupportedLocales(Iter begin, Iter end) {
+            clearSupportedLocales();
+            while (begin != end) {
+                addSupportedLocale(*begin++);
+            }
+            return *this;
+        }
+        // TODO: consider adding a variant that also takes & calls a Converter
+        // TODO: consider then doing the same with a Locale::ConvertingIterator
+
+        /**
          * Adds another supported locale.
          * Duplicates are allowed, and are not removed.
          *
@@ -396,7 +394,9 @@ public:
          */
         LocaleMatcher build(UErrorCode &errorCode) const;
 
-private:
+    private:
+        void clearSupportedLocales();
+
         UErrorCode errorCode = U_ZERO_ERROR;
         UVector *supportedLocales = nullptr;
         int32_t thresholdDistance = -1;
@@ -461,21 +461,17 @@ private:
 
     /**
      * Returns the best match between the desired and supported locales.
-     * If the result's desired locale is not nullptr, then it is
-     * the address of the best-matching desired locale if lifetime==ULOCMATCH_STORED_LOCALES,
-     * or a clone of that locale if lifetime==ULOCMATCH_TEMPORARY_LOCALES.
-     * The Result object owns the clone.
+     * If the result's desired locale is not nullptr, then it is a clone of
+     * the best-matching desired locale. The Result object owns the clone.
      *
      * @param desiredLocales Typically a user's languages, in order of preference (descending).
-     * @param lifetime Indicates whether the desired locales are temporary or stored.
      * @param errorCode ICU error code. Its input value must pass the U_SUCCESS() test,
      *                  or else the function returns immediately. Check for U_FAILURE()
      *                  on output or use with function chaining. (See User Guide for details.)
      * @return the best-matching pair of a desired and a supported locale.
      * @draft ICU 65
      */
-    Result getBestMatchResult(Locale::Iterator &desiredLocales, ULocMatchLifetime lifetime,
-                              UErrorCode &errorCode) const;
+    Result getBestMatchResult(Locale::Iterator &desiredLocales, UErrorCode &errorCode) const;
 
     /**
      * Returns a fraction between 0 and 1, where 1 means that the languages are a
