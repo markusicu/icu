@@ -11,9 +11,12 @@
 #include "unicode/localematcher.h"
 #include "unicode/locid.h"
 #include "unicode/uobject.h"
+#include "cstring.h"
 #include "loclikelysubtags.h"
 #include "locdistance.h"
 #include "lsr.h"
+
+#define UND_LSR LSR("und", "", "")
 
 U_NAMESPACE_BEGIN
 
@@ -24,12 +27,15 @@ private static final LSR UND_LSR = new LSR("und","","");
 private static final ULocale UND_ULOCALE = new ULocale("und");
 private static final Locale UND_LOCALE = new Locale("und");
 
-private static abstract class LsrIterator implements Iterator<LSR> {
-    int bestDesiredIndex = -1;
+#endif
 
-    public abstract void rememberCurrent(int desiredIndex);
+LocaleMatcher::Result::~Result() {
+    if (desiredIsOwned) {
+        delete desiredLocale;
+    }
 }
 
+#if 0
 Locale LocaleMatcher::Result::makeServiceLocale() {
     ULocale bestDesired = getDesiredULocale();
     ULocale serviceLocale = supportedULocale;
@@ -107,7 +113,7 @@ LocaleMatcher::Builder &LocaleMatcher::Builder::setDemotionPerDesiredLocale(ULoc
  * @deprecated This API is ICU internal only.
  */
 @Deprecated
-LocaleMatcher::Builder LocaleMatcher::Builder::internalSetThresholdDistance(int thresholdDistance) {
+LocaleMatcher::Builder LocaleMatcher::Builder::internalSetThresholdDistance(int32_t thresholdDistance) {
     if (thresholdDistance > 100) {
         thresholdDistance = 100;
     }
@@ -122,13 +128,14 @@ LocaleMatcher LocaleMatcher::Builder::build(UErrorCode &errorCode) {
     return new LocaleMatcher(this);
 }
 
-private LocaleMatcher(const Builder &builder, UErrorCode &errorCode) {
+private LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
+        likelySubtags(XLikelySubtags::getInstance(errorCode)) {
     thresholdDistance = builder.thresholdDistance < 0 ?
             LocaleDistance.INSTANCE.getDefaultScriptDistance() : builder.thresholdDistance;
     // Store the supported locales in input order,
     // so that when different types are used (e.g., java.util.Locale)
     // we can return those by parallel index.
-    int supportedLocalesLength = builder.supportedLocales.size();
+    int32_t supportedLocalesLength = builder.supportedLocales.size();
     supportedULocales = new ULocale[supportedLocalesLength];
     supportedLocales = new Locale[supportedLocalesLength];
     // Supported LRSs in input order.
@@ -138,12 +145,12 @@ private LocaleMatcher(const Builder &builder, UErrorCode &errorCode) {
     ULocale udef = builder.defaultLocale;
     Locale def = null;
     LSR defLSR = null;
-    int idef = -1;
+    int32_t idef = -1;
     if (udef != null) {
         def = udef.toLocale();
         defLSR = getMaximalLsrOrUnd(udef);
     }
-    int i = 0;
+    int32_t i = 0;
     for (ULocale locale : builder.supportedLocales) {
         supportedULocales[i] = locale;
         supportedLocales[i] = locale.toLocale();
@@ -190,7 +197,7 @@ private LocaleMatcher(const Builder &builder, UErrorCode &errorCode) {
     if (otherLsrToIndex != null) {
         supportedLsrToIndex.putAll(otherLsrToIndex);
     }
-    int numSuppLsrs = supportedLsrToIndex.size();
+    int32_t numSuppLsrs = supportedLsrToIndex.size();
     supportedLsrs = new LSR[numSuppLsrs];
     supportedIndexes = new int[numSuppLsrs];
     i = 0;
@@ -208,84 +215,83 @@ private LocaleMatcher(const Builder &builder, UErrorCode &errorCode) {
     favorSubtag = builder.favor;
 }
 
-private static final void putIfAbsent(Map<LSR, Integer> lsrToIndex, LSR lsr, int i) {
+private static final void putIfAbsent(Map<LSR, Integer> lsrToIndex, LSR lsr, int32_t i) {
     Integer index = lsrToIndex.get(lsr);
     if (index == null) {
         lsrToIndex.put(lsr, i);
     }
 }
+#endif
 
-private static final LSR getMaximalLsrOrUnd(ULocale locale) {
-    if (locale.equals(UND_ULOCALE)) {
+namespace {
+
+LSR getMaximalLsrOrUnd(const XLikelySubtags &likelySubtags, const Locale &locale,
+                       UErrorCode &errorCode) {
+    if (U_FAILURE(errorCode) || uprv_strcmp(locale.getName(), "und") == 0) {
         return UND_LSR;
     } else {
-        return XLikelySubtags.INSTANCE.makeMaximizedLsrFrom(locale);
+        return likelySubtags.makeMaximizedLsrFrom(locale, errorCode);
     }
 }
 
-private static final LSR getMaximalLsrOrUnd(Locale locale) {
-    if (locale.equals(UND_LOCALE)) {
-        return UND_LSR;
-    } else {
-        return XLikelySubtags.INSTANCE.makeMaximizedLsrFrom(locale);
-    }
-}
+}  // namespace
 
-private static final class ULocaleLsrIterator extends LsrIterator {
-    private Iterator<ULocale> locales;
-    private ULocale current, remembered;
+class LocaleLsrIterator {
+public:
+    LocaleLsrIterator(const XLikelySubtags &likelySubtags, Locale::Iterator &locales,
+                      ULocMatchLifetime lifetime) :
+            likelySubtags(likelySubtags), locales(locales), lifetime(lifetime) {}
 
-    ULocaleLsrIterator(Iterator<ULocale> locales) {
-        this.locales = locales;
+    ~LocaleLsrIterator() {
+        delete remembered;
     }
 
-    @Override
-    public boolean hasNext() {
+    bool hasNext() const {
         return locales.hasNext();
     }
 
-    @Override
-    public LSR next() {
-        current = locales.next();
-        return getMaximalLsrOrUnd(current);
+    LSR next(UErrorCode &errorCode) {
+        current = &locales.next();
+        return getMaximalLsrOrUnd(likelySubtags, *current, errorCode);
     }
 
-    @Override
-    public void rememberCurrent(int desiredIndex) {
+    void rememberCurrent(int32_t desiredIndex, UErrorCode &errorCode) {
+        if (U_FAILURE(errorCode)) { return; }
         bestDesiredIndex = desiredIndex;
-        remembered = current;
-    }
-}
-
-private static final class LocaleLsrIterator extends LsrIterator {
-    private Iterator<Locale> locales;
-    private Locale current, remembered;
-
-    LocaleLsrIterator(Iterator<Locale> locales) {
-        this.locales = locales;
-    }
-
-    @Override
-    public boolean hasNext() {
-        return locales.hasNext();
+        if (lifetime == ULOCMATCH_STORED_LOCALES) {
+            remembered = current;
+        } else {
+            // ULOCMATCH_TEMPORARY_LOCALES
+            delete remembered;
+            remembered = new Locale(*current);
+            if (remembered == nullptr) {
+                errorCode = U_MEMORY_ALLOCATION_ERROR;
+            }
+        }
     }
 
-    @Override
-    public LSR next() {
-        current = locales.next();
-        return getMaximalLsrOrUnd(current);
+    const Locale *orphanRemembered() {
+        const Locale *rem = remembered;
+        remembered = nullptr;
+        return rem;
     }
 
-    @Override
-    public void rememberCurrent(int desiredIndex) {
-        bestDesiredIndex = desiredIndex;
-        remembered = current;
+    int32_t getBestDesiredIndex() const {
+        return bestDesiredIndex;
     }
-}
 
+private:
+    const XLikelySubtags &likelySubtags;
+    Locale::Iterator &locales;
+    ULocMatchLifetime lifetime;
+    const Locale *current = nullptr, *remembered = nullptr;
+    int32_t bestDesiredIndex = -1;
+};
+
+#if 0
 Locale *getBestMatch(const Locale &desiredLocale, UErrorCode &errorCode) {
     LSR desiredLSR = getMaximalLsrOrUnd(desiredLocale);
-    int suppIndex = getBestSuppIndex(desiredLSR, null);
+    int32_t suppIndex = getBestSuppIndex(desiredLSR, null);
     return suppIndex >= 0 ? supportedULocales[suppIndex] : defaultULocale;
 }
 
@@ -296,53 +302,51 @@ Locale *getBestMatch(Locale::Iterator &desiredLocales, UErrorCode &errorCode) {
     }
     ULocaleLsrIterator lsrIter = new ULocaleLsrIterator(desiredIter);
     LSR desiredLSR = lsrIter.next();
-    int suppIndex = getBestSuppIndex(desiredLSR, lsrIter);
+    int32_t suppIndex = getBestSuppIndex(desiredLSR, lsrIter);
     return suppIndex >= 0 ? supportedULocales[suppIndex] : defaultULocale;
 }
 
 Locale *getBestMatch(StringPiece desiredLocaleList, UErrorCode &errorCode) {
     return getBestMatch(LocalePriorityList.add(desiredLocaleList).build());
 }
+#endif
 
-private Result makeResult(Locale desiredLocale, LocaleLsrIterator lsrIter, int suppIndex) {
-    if (suppIndex < 0) {
-        return new Result(null, defaultULocale, null, defaultLocale, -1, defaultLocaleIndex);
-    } else if (desiredLocale != null) {
-        return new Result(null, supportedULocales[suppIndex],
-                desiredLocale, supportedLocales[suppIndex], 0, suppIndex);
+LocaleMatcher::Result LocaleMatcher::getBestMatchResult(
+        const Locale &desiredLocale, UErrorCode &errorCode) const {
+    int32_t suppIndex = getBestSuppIndex(
+        getMaximalLsrOrUnd(likelySubtags, desiredLocale, errorCode),
+        nullptr, errorCode);
+    if (U_FAILURE(errorCode) || suppIndex < 0) {
+        // TODO Java: no need to return UND_LOCALE
+        return Result(nullptr, defaultLocale, -1, defaultLocaleIndex, FALSE);
     } else {
-        return new Result(null, supportedULocales[suppIndex],
-                lsrIter.remembered, supportedLocales[suppIndex],
-                lsrIter.bestDesiredIndex, suppIndex);
+        return Result(&desiredLocale, supportedLocales[suppIndex], 0, suppIndex, FALSE);
     }
 }
 
-Result getBestMatchResult(const Locale &desiredLocale, UErrorCode &errorCode) {
-    LSR desiredLSR = getMaximalLsrOrUnd(desiredLocale);
-    int suppIndex = getBestSuppIndex(desiredLSR, null);
-    return makeResult(desiredLocale, null, suppIndex);
-}
-
-Result getBestMatchResult(Locale::Iterator &desiredLocales, ULocMatchLifetime lifetime,
-                          UErrorCode &errorCode) {
-    Iterator<ULocale> desiredIter = desiredLocales.iterator();
-    if (!desiredIter.hasNext()) {
-        return makeResult(UND_ULOCALE, null, -1);
+LocaleMatcher::Result LocaleMatcher::getBestMatchResult(
+        Locale::Iterator &desiredLocales, ULocMatchLifetime lifetime, UErrorCode &errorCode) const {
+    if (!desiredLocales.hasNext()) {
+        return Result(nullptr, defaultLocale, -1, defaultLocaleIndex, FALSE);
     }
-    ULocaleLsrIterator lsrIter = new ULocaleLsrIterator(desiredIter);
-    LSR desiredLSR = lsrIter.next();
-    int suppIndex = getBestSuppIndex(desiredLSR, lsrIter);
-    return makeResult(null, lsrIter, suppIndex);
+    LocaleLsrIterator lsrIter(likelySubtags, desiredLocales, lifetime);
+    int32_t suppIndex = getBestSuppIndex(lsrIter.next(errorCode), &lsrIter, errorCode);
+    if (U_FAILURE(errorCode) || suppIndex < 0) {
+        return Result(nullptr, defaultLocale, -1, defaultLocaleIndex, FALSE);
+    } else {
+        return Result(lsrIter.orphanRemembered(), supportedLocales[suppIndex],
+                      lsrIter.getBestDesiredIndex(), suppIndex, lifetime == ULOCMATCH_TEMPORARY_LOCALES);
+    }
 }
-
-private int getBestSuppIndex(LSR desiredLSR, LsrIterator remainingIter) {
-    int desiredIndex = 0;
-    int bestSupportedLsrIndex = -1;
-    for (int bestDistance = thresholdDistance;;) {
+#if 0
+int32_t getBestSuppIndex(LSR desiredLSR, LocaleLsrIterator &remainingIter, UErrorCode &errorCode) const {
+    int32_t desiredIndex = 0;
+    int32_t bestSupportedLsrIndex = -1;
+    for (int32_t bestDistance = thresholdDistance;;) {
         // Quick check for exact maximized LSR.
         Integer index = supportedLsrToIndex.get(desiredLSR);
         if (index != null) {
-            int suppIndex = index;
+            int32_t suppIndex = index;
             if (TRACE_MATCHER) {
                 System.err.printf("Returning %s: desiredLSR=supportedLSR\n",
                         supportedULocales[suppIndex]);
@@ -350,7 +354,7 @@ private int getBestSuppIndex(LSR desiredLSR, LsrIterator remainingIter) {
             if (remainingIter != null) { remainingIter.rememberCurrent(desiredIndex); }
             return suppIndex;
         }
-        int bestIndexAndDistance = LocaleDistance.INSTANCE.getBestIndexAndDistance(
+        int32_t bestIndexAndDistance = LocaleDistance.INSTANCE.getBestIndexAndDistance(
                 desiredLSR, supportedLsrs, bestDistance, favorSubtag);
         if (bestIndexAndDistance >= 0) {
             bestDistance = bestIndexAndDistance & 0xff;
@@ -366,30 +370,21 @@ private int getBestSuppIndex(LSR desiredLSR, LsrIterator remainingIter) {
         desiredLSR = remainingIter.next();
     }
     if (bestSupportedLsrIndex < 0) {
-        if (TRACE_MATCHER) {
-            System.err.printf("Returning default %s: no good match\n", defaultULocale);
-        }
+        // no good match
         return -1;
     }
-    int suppIndex = supportedIndexes[bestSupportedLsrIndex];
-    if (TRACE_MATCHER) {
-        System.err.printf("Returning %s: best matching supported locale\n",
-                supportedULocales[suppIndex]);
-    }
-    return suppIndex;
+    return supportedIndexes[bestSupportedLsrIndex];
 }
 
 double LocaleMatcher::internalMatch(const Locale &desired, const Locale &supported, UErrorCode &errorCode) {
     // Returns the inverse of the distance: That is, 1-distance(desired, supported).
-    int distance = LocaleDistance.INSTANCE.getBestIndexAndDistance(
+    int32_t distance = LocaleDistance.INSTANCE.getBestIndexAndDistance(
             XLikelySubtags.INSTANCE.makeMaximizedLsrFrom(desired),
             new LSR[] { XLikelySubtags.INSTANCE.makeMaximizedLsrFrom(supported) },
             thresholdDistance, favorSubtag) & 0xff;
     return (100 - distance) / 100.0;
 }
-
 #endif
-
 U_NAMESPACE_END
 
 #endif  // __LOCMATCHER_H__

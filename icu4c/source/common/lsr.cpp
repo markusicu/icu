@@ -50,6 +50,7 @@ LSR &LSR::operator=(LSR &&other) U_NOEXCEPT {
     script = other.script;
     region = other.region;
     regionIndex = other.regionIndex;
+    delete owned;
     owned = other.owned;
     if (owned != nullptr) {
         other.language = other.script = "";

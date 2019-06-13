@@ -105,7 +105,7 @@ enum ULocMatchLifetime {
      *
      * @draft ICU 65
      */
-    ULOCMATCH_STORED_LOCALES  // TODO: permanent? cached?
+    ULOCMATCH_STORED_LOCALES  // TODO: permanent? cached? clone?
 };
 #ifndef U_IN_DOXYGEN
 typedef enum ULocMatchLifetime ULocMatchLifetime;
@@ -113,7 +113,11 @@ typedef enum ULocMatchLifetime ULocMatchLifetime;
 
 U_NAMESPACE_BEGIN
 
+struct LSR;
+
+class LocaleLsrIterator;
 class UVector;
+class XLikelySubtags;
 
 /**
  * Immutable class that picks the best match between a user's desired locales and
@@ -157,7 +161,7 @@ class UVector;
  *
  * @draft ICU 65
  */
-class U_COMMON_API LocaleMatcher final : public UMemory {
+class U_COMMON_API LocaleMatcher : public UMemory {
 public:
     /**
      * Data for the best-matching pair of a desired and a supported locale.
@@ -165,19 +169,7 @@ public:
      *
      * @draft ICU 65
      */
-    class U_COMMON_API Result final : public UMemory {
-        const Locale *desiredLocale;
-        const Locale *supportedLocale;
-        int32_t desiredIndex;
-        int32_t supportedIndex;
-        UBool desiredIsOwned;
-
-        Result(const Locale *desired, const Locale *supported,
-               int32_t desIndex, int32_t suppIndex, UBool owned) :
-                desiredLocale(desired), supportedLocale(supported),
-                desiredIndex(desIndex), supportedIndex(suppIndex),
-                desiredIsOwned(owned) {}
-
+    class U_COMMON_API Result : public UMemory {
     public:
         /**
          * Move constructor; might modify the source.
@@ -257,26 +249,22 @@ public:
          * @draft ICU 65
          */
         Locale makeServiceLocale() const;
+
+    private:
+        Result(const Locale *desired, const Locale *supported,
+               int32_t desIndex, int32_t suppIndex, UBool owned) :
+                desiredLocale(desired), supportedLocale(supported),
+                desiredIndex(desIndex), supportedIndex(suppIndex),
+                desiredIsOwned(owned) {}
+
+        const Locale *desiredLocale;
+        const Locale *supportedLocale;
+        int32_t desiredIndex;
+        int32_t supportedIndex;
+        UBool desiredIsOwned;
+
+        friend class LocaleMatcher;
     };
-
-#if 0
-    private final int thresholdDistance;
-    private final int demotionPerDesiredLocale;
-    private final FavorSubtag favorSubtag;
-
-    // These are in input order.
-    private final ULocale[] supportedULocales;
-    private final Locale[] supportedLocales;
-    // These are in preference order: 1. Default locale 2. paradigm locales 3. others.
-    private final Map<LSR, Integer> supportedLsrToIndex;
-    // Array versions of the supportedLsrToIndex keys and values.
-    // The distance lookup loops over the supportedLsrs and returns the index of the best match.
-    private final LSR[] supportedLsrs;
-    private final int[] supportedIndexes;
-    private final ULocale defaultULocale;
-    private final Locale defaultLocale;
-    private final int defaultLocaleIndex;
-#endif
 
     /**
      * LocaleMatcher builder.
@@ -285,14 +273,7 @@ public:
      * @see LocaleMatcher#builder()
      * @draft ICU 65
      */
-    class U_COMMON_API Builder final : public UMemory {
-        UErrorCode errorCode = U_ZERO_ERROR;
-        UVector *supportedLocales = nullptr;
-        int32_t thresholdDistance = -1;
-        ULocMatchDemotion demotion = ULOCMATCH_DEMOTION_REGION;
-        Locale *defaultLocale = nullptr;
-        ULocMatchFavorSubtag favor = ULOCMATCH_FAVOR_LANGUAGE;
-
+    class U_COMMON_API Builder : public UMemory {
     public:
         /**
          * Constructs a builder used in chaining parameters for building a LocaleMatcher.
@@ -414,6 +395,14 @@ public:
          * @draft ICU 65
          */
         LocaleMatcher build(UErrorCode &errorCode) const;
+
+private:
+        UErrorCode errorCode = U_ZERO_ERROR;
+        UVector *supportedLocales = nullptr;
+        int32_t thresholdDistance = -1;
+        ULocMatchDemotion demotion = ULOCMATCH_DEMOTION_REGION;
+        Locale *defaultLocale = nullptr;
+        ULocMatchFavorSubtag favor = ULOCMATCH_FAVOR_LANGUAGE;
     };
 
     // FYI No public LocaleMatcher constructors in C++; use the Builder.
@@ -458,6 +447,8 @@ public:
 
     /**
      * Returns the best match between the desired locale and the supported locales.
+     * If the result's desired locale is not nullptr, then it is the address of the input locale.
+     * It has not been cloned.
      *
      * @param desiredLocale Typically a user's language.
      * @param errorCode ICU error code. Its input value must pass the U_SUCCESS() test,
@@ -470,6 +461,10 @@ public:
 
     /**
      * Returns the best match between the desired and supported locales.
+     * If the result's desired locale is not nullptr, then it is
+     * the address of the best-matching desired locale if lifetime==ULOCMATCH_STORED_LOCALES,
+     * or a clone of that locale if lifetime==ULOCMATCH_TEMPORARY_LOCALES.
+     * The Result object owns the clone.
      *
      * @param desiredLocales Typically a user's languages, in order of preference (descending).
      * @param lifetime Indicates whether the desired locales are temporary or stored.
@@ -501,6 +496,29 @@ public:
      * @internal (has a known user)
      */
     double internalMatch(const Locale &desired, const Locale &supported, UErrorCode &errorCode) const;
+
+private:
+    LocaleMatcher();  // TODO: remove
+
+    int32_t getBestSuppIndex(LSR desiredLSR, LocaleLsrIterator *remainingIter, UErrorCode &errorCode) const;
+
+    const XLikelySubtags &likelySubtags;
+    int32_t thresholdDistance;
+    int32_t demotionPerDesiredLocale;
+    ULocMatchFavorSubtag favorSubtag;
+
+    // These are in input order.
+    Locale **supportedLocales;
+    int32_t supportedLocalesLength;
+    // These are in preference order: 1. Default locale 2. paradigm locales 3. others.
+    // TODO: private final Map<LSR, Integer> supportedLsrToIndex;
+    // Array versions of the supportedLsrToIndex keys and values.
+    // The distance lookup loops over the supportedLsrs and returns the index of the best match.
+    LSR *supportedLsrs;
+    int32_t *supportedIndexes;
+    int32_t supportedLsrsLength;
+    Locale *defaultLocale;
+    int32_t defaultLocaleIndex;
 };
 
 U_NAMESPACE_END
