@@ -818,13 +818,35 @@ UBool icu::ResourceTable::getKeyAndValue(int32_t i,
                                          const char *&key, icu::ResourceValue &value) const {
     if(0 <= i && i < length) {
         icu::ResourceDataValue &rdValue = static_cast<icu::ResourceDataValue &>(value);
-        if (keys16 != NULL) {
+        if (keys16 != nullptr) {
             key = RES_GET_KEY16(rdValue.pResData, keys16[i]);
         } else {
             key = RES_GET_KEY32(rdValue.pResData, keys32[i]);
         }
         Resource res;
-        if (items16 != NULL) {
+        if (items16 != nullptr) {
+            res = makeResourceFrom16(rdValue.pResData, items16[i]);
+        } else {
+            res = items32[i];
+        }
+        rdValue.setResource(res);
+        return TRUE;
+    }
+    return FALSE;
+}
+
+UBool icu::ResourceTable::findValue(const char *key, ResourceValue &value) const {
+    icu::ResourceDataValue &rdValue = static_cast<icu::ResourceDataValue &>(value);
+    const char *realKey = nullptr;
+    int32_t i;
+    if (keys16 != nullptr) {
+        i = _res_findTableItem(rdValue.pResData, keys16, length, key, &realKey);
+    } else {
+        i = _res_findTable32Item(rdValue.pResData, keys32, length, key, &realKey);
+    }
+    if (i >= 0) {
+        Resource res;
+        if (items16 != nullptr) {
             res = makeResourceFrom16(rdValue.pResData, items16[i]);
         } else {
             res = items32[i];

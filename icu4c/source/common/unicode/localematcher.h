@@ -89,6 +89,7 @@ U_NAMESPACE_BEGIN
 
 struct LSR;
 
+class LocaleDistance;
 class LocaleLsrIterator;
 class UVector;
 class XLikelySubtags;
@@ -499,21 +500,22 @@ private:
     int32_t getBestSuppIndex(LSR desiredLSR, LocaleLsrIterator *remainingIter, UErrorCode &errorCode) const;
 
     const XLikelySubtags &likelySubtags;
+    const LocaleDistance &localeDistance;
     int32_t thresholdDistance;
     int32_t demotionPerDesiredLocale;
     ULocMatchFavorSubtag favorSubtag;
 
     // These are in input order.
-    Locale **supportedLocales;
+    const Locale **const supportedLocales;
     int32_t supportedLocalesLength;
     // These are in preference order: 1. Default locale 2. paradigm locales 3. others.
     // TODO: private final Map<LSR, Integer> supportedLsrToIndex;
     // Array versions of the supportedLsrToIndex keys and values.
     // The distance lookup loops over the supportedLsrs and returns the index of the best match.
-    LSR *supportedLsrs;
-    int32_t *supportedIndexes;
+    const LSR *supportedLsrs;
+    const int32_t *supportedIndexes;
     int32_t supportedLsrsLength;
-    Locale *defaultLocale;
+    const Locale *defaultLocale;
     int32_t defaultLocaleIndex;
 };
 

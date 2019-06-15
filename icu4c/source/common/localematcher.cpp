@@ -364,36 +364,40 @@ LocaleMatcher::Result LocaleMatcher::getBestMatchResult(
                       lsrIter.getBestDesiredIndex(), suppIndex, TRUE);
     }
 }
-#if 0
-int32_t getBestSuppIndex(LSR desiredLSR, LocaleLsrIterator &remainingIter, UErrorCode &errorCode) const {
+
+int32_t LocaleMatcher::getBestSuppIndex(LSR desiredLSR, LocaleLsrIterator *remainingIter,
+                                        UErrorCode &errorCode) const {
     int32_t desiredIndex = 0;
     int32_t bestSupportedLsrIndex = -1;
     for (int32_t bestDistance = thresholdDistance;;) {
         // Quick check for exact maximized LSR.
-        Integer index = supportedLsrToIndex.get(desiredLSR);
-        if (index != null) {
-            int32_t suppIndex = index;
-            if (TRACE_MATCHER) {
-                System.err.printf("Returning %s: desiredLSR=supportedLSR\n",
-                        supportedULocales[suppIndex]);
+        // TODO: Integer index = supportedLsrToIndex.get(desiredLSR);
+        int32_t index = 55;  // TODO: real lookup; assuming here return suppIndex+1 where 0 means not found
+        if (index != 0) {
+            int32_t suppIndex = index - 1;
+            if (remainingIter != nullptr) {
+                remainingIter->rememberCurrent(desiredIndex, errorCode);
             }
-            if (remainingIter != null) { remainingIter.rememberCurrent(desiredIndex); }
             return suppIndex;
         }
-        int32_t bestIndexAndDistance = LocaleDistance.INSTANCE.getBestIndexAndDistance(
-                desiredLSR, supportedLsrs, bestDistance, favorSubtag);
+        int32_t bestIndexAndDistance = localeDistance.getBestIndexAndDistance(
+                desiredLSR, supportedLsrs, supportedLsrsLength, bestDistance, favorSubtag);
         if (bestIndexAndDistance >= 0) {
             bestDistance = bestIndexAndDistance & 0xff;
-            if (remainingIter != null) { remainingIter.rememberCurrent(desiredIndex); }
-            bestSupportedLsrIndex = bestIndexAndDistance >> 8;
+            if (remainingIter != nullptr) {
+                remainingIter->rememberCurrent(desiredIndex, errorCode);
+                if (U_FAILURE(errorCode)) { return -1; }
+            }
+            bestSupportedLsrIndex = bestIndexAndDistance >= 0 ? bestIndexAndDistance >> 8 : -1;
         }
         if ((bestDistance -= demotionPerDesiredLocale) <= 0) {
             break;
         }
-        if (remainingIter == null || !remainingIter.hasNext()) {
+        if (remainingIter == nullptr || !remainingIter->hasNext()) {
             break;
         }
-        desiredLSR = remainingIter.next();
+        desiredLSR = remainingIter->next(errorCode);
+        if (U_FAILURE(errorCode)) { return -1; }
     }
     if (bestSupportedLsrIndex < 0) {
         // no good match
@@ -401,12 +405,12 @@ int32_t getBestSuppIndex(LSR desiredLSR, LocaleLsrIterator &remainingIter, UErro
     }
     return supportedIndexes[bestSupportedLsrIndex];
 }
-
+#if 0
 double LocaleMatcher::internalMatch(const Locale &desired, const Locale &supported, UErrorCode &errorCode) {
     // Returns the inverse of the distance: That is, 1-distance(desired, supported).
-    int32_t distance = LocaleDistance.INSTANCE.getBestIndexAndDistance(
-            XLikelySubtags.INSTANCE.makeMaximizedLsrFrom(desired),
-            new LSR[] { XLikelySubtags.INSTANCE.makeMaximizedLsrFrom(supported) },
+    int32_t distance = localeDistance.getBestIndexAndDistance(
+            likelySubtags.makeMaximizedLsrFrom(desired),
+            new LSR[] { likelySubtags.makeMaximizedLsrFrom(supported) },
             thresholdDistance, favorSubtag) & 0xff;
     return (100 - distance) / 100.0;
 }

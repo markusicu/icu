@@ -21,12 +21,12 @@ struct XLikelySubtagsData;
 /** const char * keys & values. */
 class CharStringMap final : public UMemory {
 public:
-    CharStringMap();
+    CharStringMap(UErrorCode &errorCode);
     CharStringMap(CharStringMap &&other);
     CharStringMap(const CharStringMap &other) = delete;
     ~CharStringMap();
 
-    CharStringMap &operator=(CharStringMap &&other);
+    CharStringMap &operator=(CharStringMap &&other) = delete;
     CharStringMap &operator=(const CharStringMap &other) = delete;
 
     const char *get(const char *key) const;

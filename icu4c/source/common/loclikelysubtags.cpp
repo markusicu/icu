@@ -16,6 +16,8 @@
 #include "lsr.h"
 #include "uassert.h"
 #include "uinvchar.h"
+#include "uresdata.h"
+#include "uresimp.h"
 
 U_NAMESPACE_BEGIN
 
@@ -44,46 +46,47 @@ constexpr char PSEUDO_CRACKED_PREFIX = ',';  // -XC, -PSCRACK
 }  // namespace
 
 // VisibleForTesting -- TODO: ??
-struct XLikelySubtagsData final {
+struct XLikelySubtagsData {
+    UResourceBundle *likelyBundle;
     CharStringMap languageAliases;
     CharStringMap regionAliases;
     BytesTrie trie;
     const LSR *lsrs;
     int32_t lsrsLength;
 
-    XLikelySubtagsData(CharStringMap langAliases, CharStringMap rAliases,
+    XLikelySubtagsData(LocalUResourceBundlePointer likely,
+                       CharStringMap langAliases, CharStringMap rAliases,
                        BytesTrie trie, const LSR lsrs[], int32_t lsrsLength) :
+            likelyBundle(likely.orphan()),
             languageAliases(std::move(langAliases)),
             regionAliases(std::move(rAliases)),
             trie(trie),
             lsrs(lsrs), lsrsLength(lsrsLength) {}
+
+    ~XLikelySubtagsData() {
+        ures_close(likelyBundle);
+    }
+
+    // VisibleForTesting -- TODO: ??
+    static XLikelySubtagsData *load(UErrorCode &errorCode) {
+        LocalUResourceBundlePointer langInfo(ures_openDirect(nullptr, "langInfo", &errorCode));
+        if (U_FAILURE(errorCode)) { return nullptr; }
+        ResourceDataValue value;
+        ures_getValueWithFallback(langInfo.getAlias(), "likely", value, errorCode);
+        ResourceTable likelyTable = value.getTable(errorCode);
+        if (U_FAILURE(errorCode)) { return nullptr; }
+
+        // TODO: CharStringMap languageAliases;  // new HashMap<>(pairs.length / 2);
+        if (!readAliases(likelyTable, "languageAliases", value, /*languageAliases,*/ errorCode)) {
+            return nullptr;
+        }
+
+        // TODO: CharStringMap regionAliases;  // new HashMap<>(pairs.length / 2);
+        if (!readAliases(likelyTable, "regionAliases", value, /*regionAliases,*/ errorCode)) {
+            return nullptr;
+        }
+
 #if 0
-    // VisibleForTesting
-    public static XLikelySubtagsData load(UErrorCode &errorCode) {
-        ICUResourceBundle langInfo = ICUResourceBundle.getBundleInstance(
-                ICUData.ICU_BASE_NAME, "langInfo",
-                ICUResourceBundle.ICU_DATA_CLASS_LOADER, ICUResourceBundle.OpenType.DIRECT);
-        UResource.Value value = langInfo.getValueWithFallback("likely");
-        UResource.Table likelyTable = value.getTable();
-
-        CharStringMap languageAliases;
-        if (likelyTable.findValue("languageAliases", value)) {
-            String[] pairs = value.getStringArray();
-            languageAliases = new HashMap<>(pairs.length / 2);
-            for (int i = 0; i < pairs.length; i += 2) {
-                languageAliases.put(pairs[i], pairs[i + 1], errorCode);
-            }
-        }
-
-        CharStringMap regionAliases;
-        if (likelyTable.findValue("regionAliases", value)) {
-            String[] pairs = value.getStringArray();
-            regionAliases = new HashMap<>(pairs.length / 2);
-            for (int i = 0; i < pairs.length; i += 2) {
-                regionAliases.put(pairs[i], pairs[i + 1], errorCode);
-            }
-        }
-
         ByteBuffer buffer = getValue(likelyTable, "trie", value).getBinary();
         byte[] trie = new byte[buffer.remaining()];
         buffer.get(trie);
@@ -94,10 +97,39 @@ struct XLikelySubtagsData final {
             lsrs[j] = new LSR(lsrSubtags[i], lsrSubtags[i + 1], lsrSubtags[i + 2]);
         }
 
-        return new Data(languageAliases, regionAliases, trie, lsrs);
-    }
+        XLikelySubtagsData *data = new XLikelySubtagsData(languageAliases, regionAliases, trie, lsrs, lsrsLength);
+        if (data == nullptr) {
+            errorCode = U_MEMORY_ALLOCATION_ERROR;
+        }
+        return data;
 #endif
+        return nullptr;
+    }
+
 private:
+    static bool readAliases(const ResourceTable &likelyTable, const char *key, ResourceValue &value,
+                            /* TODO: CharStringMap &map,*/ UErrorCode &errorCode) {
+        if (likelyTable.findValue(key, value)) {
+            ResourceArray pairs = value.getArray(errorCode);
+            if (U_FAILURE(errorCode)) { return false; }
+            int32_t pairsLength = pairs.getSize();
+            UnicodeString from, to;
+            CharString invFrom, invTo;  // invariant characters
+            for (int i = 0; i < pairsLength; i += 2) {
+                pairs.getValue(i, value);  // returns TRUE because i < pairsLength
+                from = value.getUnicodeString(errorCode);
+                invFrom.clear().appendInvariantChars(from, errorCode);
+                if (U_FAILURE(errorCode)) { return false; }
+                if (!pairs.getValue(i + 1, value)) { break; }
+                to = value.getUnicodeString(errorCode);
+                invTo.clear().appendInvariantChars(to, errorCode);
+                if (U_FAILURE(errorCode)) { return false; }
+                // TODO: map.put(invFrom.data(), invTo.data(), errorCode);
+            }
+        }
+        return true;
+    }
+
 #if 0
     static UResource.Value getValue(UResource.Table table,
             const char *key, UResource.Value value) {

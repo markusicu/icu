@@ -38,6 +38,7 @@
 #include "umutex.h"
 #include "putilimp.h"
 #include "uassert.h"
+#include "uresdata.h"
 
 using namespace icu;
 
@@ -1953,7 +1954,7 @@ void getAllItemsWithFallback(
     // When the sink sees the no-fallback/no-inheritance marker,
     // then it would remove the parent's item.
     // We would deserialize parent values even though they are overridden in a child bundle.
-    value.pResData = &bundle->fResData;
+    value.setData(&bundle->fResData);
     UResourceDataEntry *parentEntry = bundle->fData->fParent;
     UBool hasParent = parentEntry != NULL && U_SUCCESS(parentEntry->fBogus);
     value.setResource(bundle->fRes);
@@ -2002,30 +2003,51 @@ void getAllItemsWithFallback(
 }  // namespace
 
 U_CAPI void U_EXPORT2
-ures_getAllItemsWithFallback(const UResourceBundle *bundle, const char *path,
-                             icu::ResourceSink &sink, UErrorCode &errorCode) {
+ures_getValueWithFallback(const UResourceBundle *bundle, const char *path,
+                          icu::ResourceValue &value, UErrorCode &errorCode) {
     if (U_FAILURE(errorCode)) { return; }
-    if (path == NULL) {
+    if (path == nullptr) {
         errorCode = U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
-    UResourceBundle stackBundle;
-    ures_initStackObject(&stackBundle);
+    StackUResourceBundle stackBundle;
     const UResourceBundle *rb;
     if (*path == 0) {
         // empty path
         rb = bundle;
     } else {
-        rb = ures_getByKeyWithFallback(bundle, path, &stackBundle, &errorCode);
+        rb = ures_getByKeyWithFallback(bundle, path, stackBundle.getAlias(), &errorCode);
         if (U_FAILURE(errorCode)) {
-            ures_close(&stackBundle);
+            return;
+        }
+    }
+    ResourceDataValue &rdValue = static_cast<ResourceDataValue &>(value);
+    rdValue.setData(&bundle->fResData);
+    rdValue.setResource(bundle->fRes);
+}
+
+U_CAPI void U_EXPORT2
+ures_getAllItemsWithFallback(const UResourceBundle *bundle, const char *path,
+                             icu::ResourceSink &sink, UErrorCode &errorCode) {
+    if (U_FAILURE(errorCode)) { return; }
+    if (path == nullptr) {
+        errorCode = U_ILLEGAL_ARGUMENT_ERROR;
+        return;
+    }
+    StackUResourceBundle stackBundle;
+    const UResourceBundle *rb;
+    if (*path == 0) {
+        // empty path
+        rb = bundle;
+    } else {
+        rb = ures_getByKeyWithFallback(bundle, path, stackBundle.getAlias(), &errorCode);
+        if (U_FAILURE(errorCode)) {
             return;
         }
     }
     // Get all table items with fallback.
     ResourceDataValue value;
     getAllItemsWithFallback(rb, value, sink, errorCode);
-    ures_close(&stackBundle);
 }
 
 U_CAPI UResourceBundle* U_EXPORT2 ures_getByKey(const UResourceBundle *resB, const char* inKey, UResourceBundle *fillIn, UErrorCode *status) {
