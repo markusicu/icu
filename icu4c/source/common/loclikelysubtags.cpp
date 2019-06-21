@@ -7,6 +7,7 @@
 #include <utility>
 #include "unicode/utypes.h"
 #include "unicode/bytestrie.h"
+#include "unicode/localpointer.h"
 #include "unicode/locid.h"
 #include "unicode/uobject.h"
 #include "unicode/ures.h"
@@ -15,6 +16,7 @@
 #include "loclikelysubtags.h"
 #include "lsr.h"
 #include "uassert.h"
+#include "uhash.h"
 #include "uinvchar.h"
 #include "uresdata.h"
 #include "uresimp.h"
@@ -43,28 +45,88 @@ constexpr char PSEUDO_ACCENTS_PREFIX = '\'';  // -XA, -PSACCENT
 constexpr char PSEUDO_BIDI_PREFIX = '+';  // -XB, -PSBIDI
 constexpr char PSEUDO_CRACKED_PREFIX = ',';  // -XC, -PSCRACK
 
+/** Stores NUL-terminated char * strings with duplicate elimination. */
+class UniqueCharStrings {
+public:
+    UniqueCharStrings(UErrorCode &errorCode) : strings(nullptr) {
+        uhash_init(&map, uhash_hashChars, uhash_compareChars, uhash_compareLong, &errorCode);
+        if (U_FAILURE(errorCode)) { return; }
+        strings = new CharString();
+        if (strings == nullptr) {
+            errorCode = U_MEMORY_ALLOCATION_ERROR;
+        }
+    }
+    ~UniqueCharStrings() {
+        uhash_close(&map);
+        delete strings;
+    }
+
+    CharString *orphanCharStrings() {
+        CharString *result = strings;
+        strings = nullptr;
+        return result;
+    }
+
+    /** Adds a string and returns a unique number for it. */
+    int32_t add(const UnicodeString &s, UErrorCode &errorCode) {
+        int32_t length = strings->length();
+        // Explicit NUL terminator for the previous string.
+        // The strings object is also terminated with one implicit NUL.
+        strings->append(0, errorCode);
+        // Append the new string at the end. If it is a duplicate, remove it again.
+        strings->appendInvariantChars(s, errorCode);
+        if (U_FAILURE(errorCode)) { return 0; }
+        int32_t newIndex = length + 1;  // start of the string after the NUL
+        char *t = strings->data() + newIndex;
+        int32_t oldIndex = uhash_geti(&map, t);
+        if (oldIndex != 0) {  // found duplicate
+            strings->truncate(length);
+            return oldIndex;
+        }
+        uhash_puti(&map, t, newIndex, &errorCode);
+        return newIndex;
+    }
+
+    /**
+     * Returns a string pointer for its unique number. Otherwise nullptr.
+     * The pointer may change after add()ing another string.
+     */
+    const char *get(int32_t i) const {
+        return i > 0 ? strings->data() + i : nullptr;
+    }
+
+private:
+    UHashtable map;
+    CharString *strings;
+};
+
 }  // namespace
 
 // VisibleForTesting -- TODO: ??
 struct XLikelySubtagsData {
-    UResourceBundle *likelyBundle;
+    UResourceBundle *langInfoBundle;
+    CharString *strings;
     CharStringMap languageAliases;
     CharStringMap regionAliases;
     BytesTrie trie;
     const LSR *lsrs;
     int32_t lsrsLength;
 
-    XLikelySubtagsData(LocalUResourceBundlePointer likely,
-                       CharStringMap langAliases, CharStringMap rAliases,
-                       BytesTrie trie, const LSR lsrs[], int32_t lsrsLength) :
-            likelyBundle(likely.orphan()),
+    XLikelySubtagsData(LocalUResourceBundlePointer &&langInfo,
+                       UniqueCharStrings &strings,
+                       CharStringMap &&langAliases, CharStringMap &&rAliases,
+                       BytesTrie trie, LocalArray<LSR> &&lsrs, int32_t lsrsLength) :
+            langInfoBundle(langInfo.orphan()),
+            strings(strings.orphanCharStrings()),
             languageAliases(std::move(langAliases)),
             regionAliases(std::move(rAliases)),
             trie(trie),
-            lsrs(lsrs), lsrsLength(lsrsLength) {}
+            lsrs(lsrs.orphan()), lsrsLength(lsrsLength) {}
 
     ~XLikelySubtagsData() {
-        ures_close(likelyBundle);
+        ures_close(langInfoBundle);
+        delete strings;
+        delete[] lsrs;
     }
 
     // VisibleForTesting -- TODO: ??
@@ -76,70 +138,107 @@ struct XLikelySubtagsData {
         ResourceTable likelyTable = value.getTable(errorCode);
         if (U_FAILURE(errorCode)) { return nullptr; }
 
-        // TODO: CharStringMap languageAliases;  // new HashMap<>(pairs.length / 2);
-        if (!readAliases(likelyTable, "languageAliases", value, /*languageAliases,*/ errorCode)) {
+        // Read all strings in the resource bundle and convert them to invariant char *.
+        UniqueCharStrings strings(errorCode);
+        LocalMemory<int32_t> languageIndexes, regionIndexes, lsrSubtagIndexes;
+        LocalMemory<int32_t> partitionIndexes, paradigmSubtagIndexes;
+        int32_t languagesLength, regionsLength, lsrSubtagsLength;
+        int32_t partitionsLength, paradigmSubtagsLength;
+        if (!readStrings(likelyTable, "languageAliases", value, strings,
+                         languageIndexes, languagesLength, errorCode) ||
+                !readStrings(likelyTable, "regionAliases", value, strings,
+                             regionIndexes, regionsLength, errorCode) ||
+                !readStrings(likelyTable, "lsrs", value, strings,
+                             lsrSubtagIndexes,lsrSubtagsLength, errorCode) ||
+                !readStrings(likelyTable, "partitions", value, strings,
+                             partitionIndexes, partitionsLength, errorCode) ||
+                !readStrings(likelyTable, "paradigms", value, strings,
+                             paradigmSubtagIndexes, paradigmSubtagsLength, errorCode)) {
+            return nullptr;
+        }
+        if ((languagesLength & 1) != 0 ||
+                (regionsLength & 1) != 0 ||
+                (lsrSubtagsLength % 3) != 0 ||
+                (paradigmSubtagsLength % 3) != 0) {
+            errorCode = U_INVALID_FORMAT_ERROR;
+            return nullptr;
+        }
+        if (lsrSubtagsLength == 0) {
+            errorCode = U_MISSING_RESOURCE_ERROR;
             return nullptr;
         }
 
-        // TODO: CharStringMap regionAliases;  // new HashMap<>(pairs.length / 2);
-        if (!readAliases(likelyTable, "regionAliases", value, /*regionAliases,*/ errorCode)) {
+        CharStringMap languageAliases(languagesLength / 2, errorCode);
+        for (int32_t i = 0; i < languagesLength; i += 2) {
+            languageAliases.put(strings.get(languageIndexes[i]),
+                                strings.get(languageIndexes[i + 1]), errorCode);
+        }
+
+        CharStringMap regionAliases(regionsLength / 2, errorCode);
+        for (int32_t i = 0; i < regionsLength; i += 2) {
+            regionAliases.put(strings.get(regionIndexes[i]),
+                              strings.get(regionIndexes[i + 1]), errorCode);
+        }
+        if (U_FAILURE(errorCode)) { return nullptr; }
+
+        if (!likelyTable.findValue("trie", value)) {
+            errorCode = U_MISSING_RESOURCE_ERROR;
             return nullptr;
         }
+        int32_t length;
+        const uint8_t *trieBytes = value.getBinary(length, errorCode);
+        if (U_FAILURE(errorCode)) { return nullptr; }
+        BytesTrie trie(trieBytes);
 
-#if 0
-        ByteBuffer buffer = getValue(likelyTable, "trie", value).getBinary();
-        byte[] trie = new byte[buffer.remaining()];
-        buffer.get(trie);
-
-        String[] lsrSubtags = getValue(likelyTable, "lsrs", value).getStringArray();
-        LSR[] lsrs = new LSR[lsrSubtags.length / 3];
-        for (int i = 0, j = 0; i < lsrSubtags.length; i += 3, ++j) {
-            lsrs[j] = new LSR(lsrSubtags[i], lsrSubtags[i + 1], lsrSubtags[i + 2]);
+        int32_t lsrsLength = lsrSubtagsLength / 3;
+        LocalArray<LSR> lsrs(new LSR[lsrsLength]);
+        if (lsrs.isNull()) {
+            errorCode = U_MEMORY_ALLOCATION_ERROR;
+            return nullptr;
         }
+        for (int32_t i = 0, j = 0; i < lsrSubtagsLength; i += 3, ++j) {
+            lsrs[j] = LSR(strings.get(lsrSubtagIndexes[i]),
+                          strings.get(lsrSubtagIndexes[i + 1]),
+                          strings.get(lsrSubtagIndexes[i + 2]));
+        }
+        if (U_FAILURE(errorCode)) { return nullptr; }
 
-        XLikelySubtagsData *data = new XLikelySubtagsData(languageAliases, regionAliases, trie, lsrs, lsrsLength);
+        // TODO: partitions
+        // TODO: paradigms
+
+        XLikelySubtagsData *data = new XLikelySubtagsData(
+            std::move(langInfo),
+            strings, std::move(languageAliases), std::move(regionAliases),
+            trie, std::move(lsrs), lsrsLength);
         if (data == nullptr) {
             errorCode = U_MEMORY_ALLOCATION_ERROR;
         }
         return data;
-#endif
-        return nullptr;
     }
 
 private:
-    static bool readAliases(const ResourceTable &likelyTable, const char *key, ResourceValue &value,
-                            /* TODO: CharStringMap &map,*/ UErrorCode &errorCode) {
+    static bool readStrings(const ResourceTable &likelyTable, const char *key, ResourceValue &value,
+                            UniqueCharStrings &strings,
+                            LocalMemory<int32_t> &indexes, int32_t &length,
+                            UErrorCode &errorCode) {
         if (likelyTable.findValue(key, value)) {
-            ResourceArray pairs = value.getArray(errorCode);
+            ResourceArray stringArray = value.getArray(errorCode);
             if (U_FAILURE(errorCode)) { return false; }
-            int32_t pairsLength = pairs.getSize();
-            UnicodeString from, to;
-            CharString invFrom, invTo;  // invariant characters
-            for (int i = 0; i < pairsLength; i += 2) {
-                pairs.getValue(i, value);  // returns TRUE because i < pairsLength
-                from = value.getUnicodeString(errorCode);
-                invFrom.clear().appendInvariantChars(from, errorCode);
+            length = stringArray.getSize();
+            if (length == 0) { return true; }
+            int32_t *rawIndexes = indexes.allocateInsteadAndCopy(length);
+            if (rawIndexes == nullptr) {
+                errorCode = U_MEMORY_ALLOCATION_ERROR;
+                return false;
+            }
+            for (int i = 0; i < length; ++i) {
+                stringArray.getValue(i, value);  // returns TRUE because i < length
+                rawIndexes[i] = strings.add(value.getUnicodeString(errorCode), errorCode);
                 if (U_FAILURE(errorCode)) { return false; }
-                if (!pairs.getValue(i + 1, value)) { break; }
-                to = value.getUnicodeString(errorCode);
-                invTo.clear().appendInvariantChars(to, errorCode);
-                if (U_FAILURE(errorCode)) { return false; }
-                // TODO: map.put(invFrom.data(), invTo.data(), errorCode);
             }
         }
         return true;
     }
-
-#if 0
-    static UResource.Value getValue(UResource.Table table,
-            const char *key, UResource.Value value) {
-        if (!table.findValue(key, value)) {
-            throw new MissingResourceException(
-                    "langInfo.res missing data", "", "likely/" + key);
-        }
-        return value;
-    }
-#endif
 };
 
 // TODO: public static final XLikelySubtags INSTANCE = new XLikelySubtags(Data.load());
@@ -157,12 +256,18 @@ LSR XLikelySubtags::makeMaximizedLsrFrom(const Locale &locale, UErrorCode &error
                             locale.getVariant(), errorCode);
 }
 
-XLikelySubtags::XLikelySubtags(XLikelySubtagsData &data) :
+XLikelySubtags::XLikelySubtags(XLikelySubtagsData &&data) :
+        langInfoBundle(data.langInfoBundle),
+        strings(data.strings),
         languageAliases(std::move(data.languageAliases)),
         regionAliases(std::move(data.regionAliases)),
         trie(data.trie),
         lsrs(data.lsrs),
         lsrsLength(data.lsrsLength) {
+    data.langInfoBundle = nullptr;
+    data.strings = nullptr;
+    data.lsrs = nullptr;
+
     // Cache the result of looking up language="und" encoded as "*", and "und-Zzzz" ("**").
     UStringTrieResult result = trie.next('*');
     U_ASSERT(USTRINGTRIE_HAS_NEXT(result));
@@ -185,6 +290,12 @@ XLikelySubtags::XLikelySubtags(XLikelySubtagsData &data) :
         }
         trie.reset();
     }
+}
+
+XLikelySubtags::~XLikelySubtags() {
+    ures_close(langInfoBundle);
+    delete strings;
+    delete[] lsrs;
 }
 
 namespace {

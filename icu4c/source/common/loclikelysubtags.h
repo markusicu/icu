@@ -12,7 +12,9 @@
 #include "unicode/bytestrie.h"
 #include "unicode/locid.h"
 #include "unicode/uobject.h"
+#include "unicode/ures.h"
 #include "lsr.h"
+#include "uhash.h"
 
 U_NAMESPACE_BEGIN
 
@@ -21,23 +23,34 @@ struct XLikelySubtagsData;
 /** const char * keys & values. */
 class CharStringMap final : public UMemory {
 public:
-    CharStringMap(UErrorCode &errorCode);
-    CharStringMap(CharStringMap &&other);
+    CharStringMap(int32_t size, UErrorCode &errorCode) {
+        map = uhash_openSize(uhash_hashChars, uhash_compareChars, uhash_compareChars,
+                             size, &errorCode);
+    }
+    CharStringMap(CharStringMap &&other) : map(other.map) {
+        other.map = nullptr;
+    }
     CharStringMap(const CharStringMap &other) = delete;
-    ~CharStringMap();
+    ~CharStringMap() {
+        uhash_close(map);
+    }
 
     CharStringMap &operator=(CharStringMap &&other) = delete;
     CharStringMap &operator=(const CharStringMap &other) = delete;
 
-    const char *get(const char *key) const;
-    // TODO: ownership?
-    void put(const char *key, const char *value, UErrorCode &errorCode);
+    const char *get(const char *key) const { return static_cast<const char *>(uhash_get(map, key)); }
+    void put(const char *key, const char *value, UErrorCode &errorCode) {
+        uhash_put(map, const_cast<char *>(key), const_cast<char *>(value), &errorCode);
+    }
 
 private:
+    UHashtable *map;
 };
 
 class XLikelySubtags final : public UMemory {
 public:
+    ~XLikelySubtags();
+
     static constexpr int32_t SKIP_SCRIPT = 1;
 
     // VisibleForTesting
@@ -51,6 +64,8 @@ public:
                         ULocale.Minimize fieldToFavor, UErrorCode &errorCode) const;
 #endif
 private:
+    UResourceBundle *langInfoBundle;
+    CharString *strings;
     CharStringMap languageAliases;
     CharStringMap regionAliases;
 
@@ -65,7 +80,7 @@ private:
     const LSR *lsrs;
     int32_t lsrsLength;
 
-    XLikelySubtags(XLikelySubtagsData &data);
+    XLikelySubtags(XLikelySubtagsData &&data);
 
     LSR makeMaximizedLsr(const char *language, const char *script, const char *region,
                          const char *variant, UErrorCode &errorCode) const;

@@ -22,6 +22,8 @@ struct LSR final : public UMemory {
     /** Index for region, negative if ill-formed. @see indexForRegion */
     int32_t regionIndex;
 
+    LSR() : language("und"), script(""), region(""), owned(nullptr), regionIndex(indexForRegion(region)) {}
+
     /** Constructor which aliases all subtag pointers. */
     LSR(const char *lang, const char *scr, const char *r) :
             language(lang),  script(scr), region(r), owned(nullptr),
