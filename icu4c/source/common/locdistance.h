@@ -24,7 +24,7 @@ struct LocaleDistanceData;
  */
 class LocaleDistance final : public UMemory {
 public:
-    static const LocaleDistance &getSingleton(UErrorCode &errorCode);
+    static const LocaleDistance *getSingleton(UErrorCode &errorCode);
 
     /**
      * Finds the supported LSR with the smallest distance from the desired one.

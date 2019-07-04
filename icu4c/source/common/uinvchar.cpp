@@ -449,7 +449,7 @@ U_CFUNC UBool
 uprv_isEbcdicAtSign(char c) {
     static const uint8_t ebcdicAtSigns[] = {
         0x7C, 0x44, 0x66, 0x80, 0xAC, 0xAE, 0xAF, 0xB5, 0xEC, 0xEF, 0x00 };
-    return uprv_strchr(ebcdicAtSigns, c) != nullptr;
+    return uprv_strchr((const char *)ebcdicAtSigns, c) != nullptr;
 }
 
 /* compare invariant strings; variant characters compare less than others and unlike each other */

@@ -1,7 +1,7 @@
 // © 2019 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html#License
 
-// locmatcher.h
+// localematcher.cpp
 // created: 2019may08 Markus W. Scherer
 
 #ifndef __LOCMATCHER_H__
@@ -15,6 +15,7 @@
 #include "loclikelysubtags.h"
 #include "locdistance.h"
 #include "lsr.h"
+#include "uvector.h"
 
 #define UND_LSR LSR("und", "", "")
 
@@ -92,7 +93,32 @@ Locale LocaleMatcher::Result::makeResolvedLocale() {
     }
     return serviceLocale;
 }
+#endif
 
+LocaleMatcher::Builder::~Builder() {
+    delete supportedLocales;
+    delete defaultLocale;
+}
+
+void LocaleMatcher::Builder::clearSupportedLocales() {
+    if (supportedLocales != nullptr) {
+        supportedLocales->removeAllElements();
+    }
+}
+
+bool LocaleMatcher::Builder::ensureSupportedLocaleVector() {
+    if (U_FAILURE(errorCode)) { return false; }
+    if (supportedLocales != nullptr) { return true; }
+    supportedLocales = new UVector(uprv_deleteUObject, nullptr, errorCode);
+    if (U_FAILURE(errorCode)) { return false; }
+    if (supportedLocales == nullptr) {
+        errorCode = U_MEMORY_ALLOCATION_ERROR;
+        return false;
+    }
+    return true;
+}
+
+#if 0
 LocaleMatcher::Builder &LocaleMatcher::Builder::setSupportedLocales(StringPiece locales) {
     return setSupportedULocales(LocalePriorityList.add(locales).build().getULocales());
 }
@@ -127,6 +153,7 @@ LocaleMatcher::Builder &LocaleMatcher::Builder::setDemotionPerDesiredLocale(ULoc
     this.demotion = demotion;
     return this;
 }
+#endif
 
 #if 0
 /**
@@ -145,16 +172,29 @@ LocaleMatcher::Builder LocaleMatcher::Builder::internalSetThresholdDistance(int3
     this.thresholdDistance = thresholdDistance;
     return this;
 }
-#endif
 
 UBool LocaleMatcher::Builder::copyErrorTo(UErrorCode &outErrorCode);
+#endif
 
-LocaleMatcher LocaleMatcher::Builder::build(UErrorCode &errorCode) {
-    return new LocaleMatcher(this);
+LocaleMatcher LocaleMatcher::Builder::build(UErrorCode &errorCode) const {
+    return LocaleMatcher(*this, errorCode);
 }
 
-private LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
-        likelySubtags(XLikelySubtags::getInstance(errorCode)) {
+LocaleMatcher::LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
+        likelySubtags(*XLikelySubtags::getSingleton(errorCode)),
+        localeDistance(*LocaleDistance::getSingleton(errorCode)),
+        thresholdDistance(builder.thresholdDistance),
+        demotionPerDesiredLocale(builder.demotion),
+        favorSubtag(builder.favor),
+        supportedLocales(nullptr),
+        supportedLocalesLength(0),
+        supportedLsrs(nullptr),
+        supportedIndexes(nullptr),
+        supportedLsrsLength(0),
+        defaultLocale(nullptr),  // TODO: clone
+        defaultLocaleIndex(-1) {
+    if (U_FAILURE(errorCode)) { return; }
+#if 0
     thresholdDistance = builder.thresholdDistance < 0 ?
             LocaleDistance.INSTANCE.getDefaultScriptDistance() : builder.thresholdDistance;
     // Store the supported locales in input order,
@@ -238,8 +278,10 @@ private LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
             builder.demotion == Demotion.NONE ? 0 :
                 LocaleDistance.INSTANCE.getDefaultDemotionPerDesiredLocale();  // null or REGION
     favorSubtag = builder.favor;
+#endif
 }
 
+#if 0
 private static final void putIfAbsent(Map<LSR, Integer> lsrToIndex, LSR lsr, int32_t i) {
     Integer index = lsrToIndex.get(lsr);
     if (index == null) {

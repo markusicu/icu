@@ -142,8 +142,8 @@ struct XLikelySubtagsData {
         UniqueCharStrings strings(errorCode);
         LocalMemory<int32_t> languageIndexes, regionIndexes, lsrSubtagIndexes;
         LocalMemory<int32_t> partitionIndexes, paradigmSubtagIndexes;
-        int32_t languagesLength, regionsLength, lsrSubtagsLength;
-        int32_t partitionsLength, paradigmSubtagsLength;
+        int32_t languagesLength = 0, regionsLength = 0, lsrSubtagsLength = 0;
+        int32_t partitionsLength = 0, paradigmSubtagsLength = 0;
         if (!readStrings(likelyTable, "languageAliases", value, strings,
                          languageIndexes, languagesLength, errorCode) ||
                 !readStrings(likelyTable, "regionAliases", value, strings,
@@ -242,7 +242,16 @@ private:
 };
 
 // TODO: public static final XLikelySubtags INSTANCE = new XLikelySubtags(Data.load());
-// TODO: const XLikelySubtags &XLikelySubtags::getSingleton(UErrorCode &errorCode);
+const XLikelySubtags *XLikelySubtags::getSingleton(UErrorCode &errorCode) {
+    LocalPointer<XLikelySubtagsData> data(XLikelySubtagsData::load(errorCode));
+    if (U_FAILURE(errorCode)) { return nullptr; }
+    // TODO: init once, cache
+    XLikelySubtags *likely = new XLikelySubtags(*data);
+    if (likely == nullptr) {
+        errorCode = U_MEMORY_ALLOCATION_ERROR;
+    }
+    return likely;
+}
 
 // VisibleForTesting
 LSR XLikelySubtags::makeMaximizedLsrFrom(const Locale &locale, UErrorCode &errorCode) const {
@@ -256,7 +265,7 @@ LSR XLikelySubtags::makeMaximizedLsrFrom(const Locale &locale, UErrorCode &error
                             locale.getVariant(), errorCode);
 }
 
-XLikelySubtags::XLikelySubtags(XLikelySubtagsData &&data) :
+XLikelySubtags::XLikelySubtags(XLikelySubtagsData &data) :
         langInfoBundle(data.langInfoBundle),
         strings(data.strings),
         languageAliases(std::move(data.languageAliases)),

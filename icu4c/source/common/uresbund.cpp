@@ -2022,8 +2022,8 @@ ures_getValueWithFallback(const UResourceBundle *bundle, const char *path,
         }
     }
     ResourceDataValue &rdValue = static_cast<ResourceDataValue &>(value);
-    rdValue.setData(&bundle->fResData);
-    rdValue.setResource(bundle->fRes);
+    rdValue.setData(&rb->fResData);
+    rdValue.setResource(rb->fRes);
 }
 
 U_CAPI void U_EXPORT2

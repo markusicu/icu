@@ -478,7 +478,7 @@ public:
     ResourceDataValue() : pResData(NULL), res(static_cast<Resource>(URES_NONE)) {}
     virtual ~ResourceDataValue();
 
-    void setData(const ResourceData *data) { pResData = data; }
+    void setData(const ResourceData *data) { resData = *data; pResData = &resData; }
     void setResource(Resource r) { res = r; }
 
     virtual UResType getType() const;
@@ -500,6 +500,7 @@ public:
     const ResourceData *pResData;
 
 private:
+    ResourceData resData;
     Resource res;
 };
 

@@ -54,7 +54,7 @@ public:
     static constexpr int32_t SKIP_SCRIPT = 1;
 
     // VisibleForTesting
-    static const XLikelySubtags &getSingleton(UErrorCode &errorCode);
+    static const XLikelySubtags *getSingleton(UErrorCode &errorCode);
 
     // VisibleForTesting
     LSR makeMaximizedLsrFrom(const Locale &locale, UErrorCode &errorCode) const;
@@ -80,7 +80,7 @@ private:
     const LSR *lsrs;
     int32_t lsrsLength;
 
-    XLikelySubtags(XLikelySubtagsData &&data);
+    XLikelySubtags(XLikelySubtagsData &data);
 
     LSR makeMaximizedLsr(const char *language, const char *script, const char *region,
                          const char *variant, UErrorCode &errorCode) const;

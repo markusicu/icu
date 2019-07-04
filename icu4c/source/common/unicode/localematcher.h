@@ -396,7 +396,10 @@ public:
         LocaleMatcher build(UErrorCode &errorCode) const;
 
     private:
+        friend class LocaleMatcher;
+
         void clearSupportedLocales();
+        bool ensureSupportedLocaleVector();
 
         UErrorCode errorCode = U_ZERO_ERROR;
         UVector *supportedLocales = nullptr;
@@ -495,7 +498,9 @@ public:
     double internalMatch(const Locale &desired, const Locale &supported, UErrorCode &errorCode) const;
 
 private:
-    LocaleMatcher();  // TODO: remove
+    // TODO: no copy
+    // TODO: movable?
+    LocaleMatcher(const Builder &builder, UErrorCode &errorCode);
 
     int32_t getBestSuppIndex(LSR desiredLSR, LocaleLsrIterator *remainingIter, UErrorCode &errorCode) const;
 

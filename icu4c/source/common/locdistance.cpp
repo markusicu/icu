@@ -111,6 +111,11 @@ struct LocaleDistanceData final {
 #endif
 // TODO: VisibleForTesting
 // TODO: public static final LocaleDistance INSTANCE = new LocaleDistance(Data.load());
+const LocaleDistance *LocaleDistance::getSingleton(UErrorCode &errorCode) {
+    if (U_FAILURE(errorCode)) { return nullptr; }
+    return nullptr;  // TODO
+}
+
 #if 0
 private LocaleDistance(LocaleDistanceData &data) {
     this.trie = new BytesTrie(data.trie, 0);
