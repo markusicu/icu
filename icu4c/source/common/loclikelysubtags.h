@@ -32,7 +32,7 @@ public:
         map = uhash_openSize(uhash_hashChars, uhash_compareChars, uhash_compareChars,
                              size, &errorCode);
     }
-    CharStringMap(CharStringMap &&other) : map(other.map) {
+    CharStringMap(CharStringMap &&other) U_NOEXCEPT : map(other.map) {
         other.map = nullptr;
     }
     CharStringMap(const CharStringMap &other) = delete;
@@ -40,7 +40,7 @@ public:
         uhash_close(map);
     }
 
-    CharStringMap &operator=(CharStringMap &&other) {
+    CharStringMap &operator=(CharStringMap &&other) U_NOEXCEPT {
         map = other.map;
         other.map = nullptr;
         return *this;
@@ -90,6 +90,8 @@ public:
 
 private:
     XLikelySubtags(XLikelySubtagsData &data);
+    XLikelySubtags(const XLikelySubtags &other) = delete;
+    XLikelySubtags &operator=(const XLikelySubtags &other) = delete;
 
     static void initLikelySubtags(UErrorCode &errorCode);
 

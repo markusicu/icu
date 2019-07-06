@@ -13,7 +13,7 @@ U_NAMESPACE_BEGIN
 
 LSR::LSR(char prefix, const char *lang, const char *scr, const char *r, UErrorCode &errorCode) :
         language(nullptr), script(nullptr), region(r), owned(nullptr),
-        regionIndex(indexForRegion(region)) {
+        languageLength(0), scriptLength(0), regionIndex(indexForRegion(region)) {
     if (U_SUCCESS(errorCode)) {
         // Number of bytes for language + script with 2 prefixes and NUL terminators.
         int32_t langSize = uprv_strlen(lang) + 1, scriptSize = uprv_strlen(scr) + 1;
@@ -26,6 +26,8 @@ LSR::LSR(char prefix, const char *lang, const char *scr, const char *r, UErrorCo
             script = p += langSize;
             *p++ = prefix;
             uprv_memcpy(p, scr, scriptSize);
+            languageLength = langSize;
+            scriptLength = scriptSize;
         } else {
             errorCode = U_MEMORY_ALLOCATION_ERROR;
         }
@@ -33,11 +35,13 @@ LSR::LSR(char prefix, const char *lang, const char *scr, const char *r, UErrorCo
 }
 
 LSR::LSR(LSR &&other) U_NOEXCEPT :
-        language(other.language), script(other.script), region(other.region),
-        owned(other.owned), regionIndex(other.regionIndex) {
+        language(other.language), script(other.script), region(other.region), owned(other.owned),
+        languageLength(other.languageLength), scriptLength(other.scriptLength),
+        regionIndex(other.regionIndex) {
     if (owned != nullptr) {
         other.language = other.script = "";
         other.owned = nullptr;
+        other.languageLength = other.scriptLength = 0;
     }
 }
 
@@ -49,19 +53,24 @@ LSR &LSR::operator=(LSR &&other) U_NOEXCEPT {
     language = other.language;
     script = other.script;
     region = other.region;
+    languageLength = other.languageLength;
+    scriptLength = other.scriptLength;
     regionIndex = other.regionIndex;
     delete owned;
     owned = other.owned;
     if (owned != nullptr) {
         other.language = other.script = "";
         other.owned = nullptr;
+        other.languageLength = other.scriptLength = 0;
     }
     return *this;
 }
 
 UBool LSR::operator==(const LSR &other) const {
-    return uprv_strcmp(language, other.language) == 0 &&
-        uprv_strcmp(script, other.script) == 0 &&
+    return languageLength == other.languageLength &&
+        uprv_memcmp(language, other.language, languageLength) == 0 &&
+        scriptLength == other.scriptLength &&
+        uprv_memcmp(script, other.script, scriptLength) == 0 &&
         regionIndex == other.regionIndex &&
         // Compare regions if both are ill-formed (and their indexes are 0).
         (regionIndex > 0 || uprv_strcmp(region, other.region) == 0);

@@ -35,7 +35,7 @@ public:
      * and its distance (0..ABOVE_THRESHOLD) in bits 7..0.
      */
     int32_t getBestIndexAndDistance(const LSR &desired,
-                                    const LSR *supportedLsrs, int32_t supportedLsrsLength,
+                                    const LSR **supportedLsrs, int32_t supportedLsrsLength,
                                     int32_t threshold, ULocMatchFavorSubtag favorSubtag) const;
 
 #if 0
@@ -44,6 +44,8 @@ public:
                              int32_t threshold, ULocMatchFavorSubtag favorSubtag,
                              UErrorCode &errorCode) const;
 #endif
+
+    int32_t getParadigmLSRsLength() const { return paradigmLSRsLength; }
 
     UBool isParadigmLSR(const LSR &lsr) const;
 
@@ -58,6 +60,8 @@ public:
 
 private:
     LocaleDistance(const LocaleDistanceData &data);
+    LocaleDistance(const LocaleDistance &other) = delete;
+    LocaleDistance &operator=(const LocaleDistance &other) = delete;
 
     static void initLocaleDistance(UErrorCode &errorCode);
 

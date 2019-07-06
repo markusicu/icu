@@ -89,7 +89,8 @@ LocaleDistance::LocaleDistance(const LocaleDistanceData &data) :
         minRegionDistance(data.distances[IX_MIN_REGION_DISTANCE]) {
     LSR en("en", "Latn", "US");
     LSR enGB("en", "Latn", "GB");
-    defaultDemotionPerDesiredLocale = getBestIndexAndDistance(en, &enGB, 1,
+    const LSR *p_enGB = &enGB;
+    defaultDemotionPerDesiredLocale = getBestIndexAndDistance(en, &p_enGB, 1,
             50, ULOCMATCH_FAVOR_LANGUAGE) & 0xff;
 }
 
@@ -109,7 +110,7 @@ int32_t testOnlyDistance(const Locale &desired, const Locale &supported,
 
 int32_t LocaleDistance::getBestIndexAndDistance(
         const LSR &desired,
-        const LSR *supportedLsrs, int32_t supportedLsrsLength,
+        const LSR **supportedLsrs, int32_t supportedLsrsLength,
         int32_t threshold, ULocMatchFavorSubtag favorSubtag) const {
     BytesTrie iter(trie);
     // Look up the desired language only once for all supported LSRs.
@@ -120,7 +121,7 @@ int32_t LocaleDistance::getBestIndexAndDistance(
     // Index of the supported LSR with the lowest distance.
     int32_t bestIndex = -1;
     for (int32_t slIndex = 0; slIndex < supportedLsrsLength; ++slIndex) {
-        const LSR &supported = supportedLsrs[slIndex];
+        const LSR &supported = *supportedLsrs[slIndex];
         bool star = false;
         int32_t distance = desLangDistance;
         if (distance >= 0) {

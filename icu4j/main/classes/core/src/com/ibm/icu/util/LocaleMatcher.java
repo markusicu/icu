@@ -602,7 +602,7 @@ public class LocaleMatcher {
         }
 
         // We need an unordered map from LSR to first supported locale with that LSR,
-        // and an ordered list of (LSR, Indexes).
+        // and an ordered list of (LSR, supported index).
         // We use a LinkedHashMap for both,
         // and insert the supported locales in the following order:
         // 1. Default locale, if it is supported.
@@ -624,7 +624,9 @@ public class LocaleMatcher {
                 defLSR = lsr;
                 idef = 0;
                 supportedLsrToIndex.put(lsr, 0);
-            } else if (lsr.equals(defLSR) || LocaleDistance.INSTANCE.isParadigmLSR(lsr)) {
+            } else if (lsr.equals(defLSR)) {
+                // already in the map
+            } else if (LocaleDistance.INSTANCE.isParadigmLSR(lsr)) {
                 putIfAbsent(supportedLsrToIndex, lsr, i);
             } else {
                 if (otherLsrToIndex == null) {

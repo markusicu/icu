@@ -85,6 +85,8 @@ enum ULocMatchDemotion {
 typedef enum ULocMatchDemotion ULocMatchDemotion;
 #endif
 
+struct UHashtable;
+
 U_NAMESPACE_BEGIN
 
 struct LSR;
@@ -97,6 +99,7 @@ class XLikelySubtags;
 /**
  * Immutable class that picks the best match between a user's desired locales and
  * and application's supported locales.
+ * Movable but not copyable.
  *
  * <p>Example:
  * <pre>
@@ -150,10 +153,10 @@ public:
          * Move constructor; might modify the source.
          * This object will have the same contents that the source object had.
          *
-         * @param other Result to move contents from.
+         * @param src Result to move contents from.
          * @draft ICU 65
          */
-        Result(Result &&other) U_NOEXCEPT;
+        Result(Result &&src) U_NOEXCEPT;
 
         /**
          * Destructor.
@@ -166,10 +169,10 @@ public:
          * Move assignment; might modify the source.
          * This object will have the same contents that the source object had.
          *
-         * @param other Result to move contents from.
+         * @param src Result to move contents from.
          * @draft ICU 65
          */
-        Result &operator=(Result &&other) U_NOEXCEPT;
+        Result &operator=(Result &&src) U_NOEXCEPT;
 
         /**
          * Returns the best-matching desired locale.
@@ -262,10 +265,10 @@ public:
          * Move constructor; might modify the source.
          * This builder will have the same contents that the source builder had.
          *
-         * @param other Builder to move contents from.
+         * @param src Builder to move contents from.
          * @draft ICU 65
          */
-        Builder(Builder &&other) U_NOEXCEPT;
+        Builder(Builder &&src) U_NOEXCEPT;
 
         /**
          * Destructor.
@@ -278,10 +281,10 @@ public:
          * Move assignment; might modify the source.
          * This builder will have the same contents that the source builder had.
          *
-         * @param other Builder to move contents from.
+         * @param src Builder to move contents from.
          * @draft ICU 65
          */
-        Builder &operator=(Builder &&other) U_NOEXCEPT;
+        Builder &operator=(Builder &&src) U_NOEXCEPT;
 
         /**
          * Parses the string like {@link LocalePriorityList} does and
@@ -401,15 +404,39 @@ public:
         void clearSupportedLocales();
         bool ensureSupportedLocaleVector();
 
-        UErrorCode errorCode = U_ZERO_ERROR;
-        UVector *supportedLocales = nullptr;
-        int32_t thresholdDistance = -1;
-        ULocMatchDemotion demotion = ULOCMATCH_DEMOTION_REGION;
-        Locale *defaultLocale = nullptr;
-        ULocMatchFavorSubtag favor = ULOCMATCH_FAVOR_LANGUAGE;
+        UErrorCode errorCode_ = U_ZERO_ERROR;
+        UVector *supportedLocales_ = nullptr;
+        int32_t thresholdDistance_ = -1;
+        ULocMatchDemotion demotion_ = ULOCMATCH_DEMOTION_REGION;
+        Locale *defaultLocale_ = nullptr;
+        ULocMatchFavorSubtag favor_ = ULOCMATCH_FAVOR_LANGUAGE;
     };
 
     // FYI No public LocaleMatcher constructors in C++; use the Builder.
+
+    /**
+     * Move copy constructor; might modify the source.
+     * This matcher will have the same settings that the source matcher had.
+     * @param src source matcher
+     * @draft ICU 65
+     */
+    LocaleMatcher(LocaleMatcher &&src) U_NOEXCEPT;
+
+    /**
+     * Destructor.
+     * @draft ICU 65
+     */
+    ~LocaleMatcher();
+
+    /**
+     * Move assignment operator; might modify the source.
+     * This matcher will have the same settings that the source matcher had.
+     * The behavior is undefined if *this and src are the same object.
+     * @param src source matcher
+     * @return *this
+     * @draft ICU 65
+     */
+    LocaleMatcher &operator=(LocaleMatcher &&src) U_NOEXCEPT;
 
     /**
      * Returns the supported locale which best matches the desired locale.
@@ -419,9 +446,9 @@ public:
      *                  or else the function returns immediately. Check for U_FAILURE()
      *                  on output or use with function chaining. (See User Guide for details.)
      * @return the best-matching supported locale.
-     * @stable ICU 65
+     * @draft ICU 65
      */
-    Locale *getBestMatch(const Locale &desiredLocale, UErrorCode &errorCode) const;
+    const Locale *getBestMatch(const Locale &desiredLocale, UErrorCode &errorCode) const;
 
     /**
      * Returns the supported locale which best matches one of the desired locales.
@@ -431,9 +458,9 @@ public:
      *                  or else the function returns immediately. Check for U_FAILURE()
      *                  on output or use with function chaining. (See User Guide for details.)
      * @return the best-matching supported locale.
-     * @stable ICU 65
+     * @draft ICU 65
      */
-    Locale *getBestMatch(Locale::Iterator &desiredLocales, UErrorCode &errorCode) const;
+    const Locale *getBestMatch(Locale::Iterator &desiredLocales, UErrorCode &errorCode) const;
 
     /**
      * Parses the string like {@link LocalePriorityList} does and
@@ -445,9 +472,9 @@ public:
      *                  or else the function returns immediately. Check for U_FAILURE()
      *                  on output or use with function chaining. (See User Guide for details.)
      * @return the best-matching supported locale.
-     * @stable ICU 65
+     * @draft ICU 65
      */
-    Locale *getBestMatch(StringPiece desiredLocaleList, UErrorCode &errorCode) const;
+    const Locale *getBestMatch(StringPiece desiredLocaleList, UErrorCode &errorCode) const;
 
     /**
      * Returns the best match between the desired locale and the supported locales.
@@ -498,9 +525,9 @@ public:
     double internalMatch(const Locale &desired, const Locale &supported, UErrorCode &errorCode) const;
 
 private:
-    // TODO: no copy
-    // TODO: movable?
     LocaleMatcher(const Builder &builder, UErrorCode &errorCode);
+    LocaleMatcher(const LocaleMatcher &other) = delete;
+    LocaleMatcher &operator=(const LocaleMatcher &other) = delete;
 
     int32_t getBestSuppIndex(LSR desiredLSR, LocaleLsrIterator *remainingIter, UErrorCode &errorCode) const;
 
@@ -511,15 +538,17 @@ private:
     ULocMatchFavorSubtag favorSubtag;
 
     // These are in input order.
-    const Locale **const supportedLocales;
+    const Locale ** supportedLocales;
+    LSR *lsrs;
     int32_t supportedLocalesLength;
     // These are in preference order: 1. Default locale 2. paradigm locales 3. others.
-    // TODO: private final Map<LSR, Integer> supportedLsrToIndex;
+    UHashtable *supportedLsrToIndex;  // Map<LSR, Integer> stores index+1 because 0 is "not found"
     // Array versions of the supportedLsrToIndex keys and values.
     // The distance lookup loops over the supportedLsrs and returns the index of the best match.
-    const LSR *supportedLsrs;
-    const int32_t *supportedIndexes;
+    const LSR **supportedLsrs;
+    int32_t *supportedIndexes;
     int32_t supportedLsrsLength;
+    Locale *ownedDefaultLocale;
     const Locale *defaultLocale;
     int32_t defaultLocaleIndex;
 };
