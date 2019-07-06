@@ -67,6 +67,9 @@ struct UResourceBundle {
     char *fVersion;
     UResourceDataEntry *fTopLevelData; /* for getting the valid locale */
     char *fResPath; /* full path to the resource: "zh_TW/CollationElements/Sequence" */
+    // TODO: Try to change the by-value fResData into a pointer,
+    // with the struct in only one place for each bundle.
+    // Also remove class ResourceDataValue.resData then.
     ResourceData fResData;
     char fResBuf[RES_BUFSIZE];
     int32_t fResPathLen;

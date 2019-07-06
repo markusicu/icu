@@ -7,6 +7,8 @@
 #ifndef __LOCMATCHER_H__
 #define __LOCMATCHER_H__
 
+#include <stdio.h>  // TODO
+
 #include "unicode/utypes.h"
 #include "unicode/localematcher.h"
 #include "unicode/locid.h"
@@ -180,6 +182,19 @@ LocaleMatcher LocaleMatcher::Builder::build(UErrorCode &errorCode) const {
     return LocaleMatcher(*this, errorCode);
 }
 
+namespace {
+
+LSR getMaximalLsrOrUnd(const XLikelySubtags &likelySubtags, const Locale &locale,
+                       UErrorCode &errorCode) {
+    if (U_FAILURE(errorCode) || locale.isBogus() || *locale.getName() == 0 /* "und" */) {
+        return UND_LSR;
+    } else {
+        return likelySubtags.makeMaximizedLsrFrom(locale, errorCode);
+    }
+}
+
+}  // namespace
+
 LocaleMatcher::LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
         likelySubtags(*XLikelySubtags::getSingleton(errorCode)),
         localeDistance(*LocaleDistance::getSingleton(errorCode)),
@@ -194,6 +209,11 @@ LocaleMatcher::LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
         defaultLocale(nullptr),  // TODO: clone
         defaultLocaleIndex(-1) {
     if (U_FAILURE(errorCode)) { return; }
+    // TODO: begin remove
+    Locale locale("zh-TW");
+    LSR lsr = getMaximalLsrOrUnd(likelySubtags, locale, errorCode);
+    printf("'%s' --> maximal '%s-%s-%s'\n", locale.getName(), lsr.language, lsr.script, lsr.region);
+    // TODO: end remove
 #if 0
     thresholdDistance = builder.thresholdDistance < 0 ?
             LocaleDistance.INSTANCE.getDefaultScriptDistance() : builder.thresholdDistance;
@@ -289,19 +309,6 @@ private static final void putIfAbsent(Map<LSR, Integer> lsrToIndex, LSR lsr, int
     }
 }
 #endif
-
-namespace {
-
-LSR getMaximalLsrOrUnd(const XLikelySubtags &likelySubtags, const Locale &locale,
-                       UErrorCode &errorCode) {
-    if (U_FAILURE(errorCode) || uprv_strcmp(locale.getName(), "und") == 0) {
-        return UND_LSR;
-    } else {
-        return likelySubtags.makeMaximizedLsrFrom(locale, errorCode);
-    }
-}
-
-}  // namespace
 
 class LocaleLsrIterator {
 public:

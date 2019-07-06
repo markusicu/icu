@@ -148,14 +148,14 @@ public class LocaleDistance {
     public static final LocaleDistance INSTANCE = new LocaleDistance(Data.load());
 
     private LocaleDistance(Data data) {
-        this.trie = new BytesTrie(data.trie, 0);
-        this.regionToPartitionsIndex = data.regionToPartitionsIndex;
-        this.partitionArrays = data.partitionArrays;
-        this.paradigmLSRs = data.paradigmLSRs;
+        trie = new BytesTrie(data.trie, 0);
+        regionToPartitionsIndex = data.regionToPartitionsIndex;
+        partitionArrays = data.partitionArrays;
+        paradigmLSRs = data.paradigmLSRs;
         defaultLanguageDistance = data.distances[IX_DEF_LANG_DISTANCE];
         defaultScriptDistance = data.distances[IX_DEF_SCRIPT_DISTANCE];
         defaultRegionDistance = data.distances[IX_DEF_REGION_DISTANCE];
-        this.minRegionDistance = data.distances[IX_MIN_REGION_DISTANCE];
+        minRegionDistance = data.distances[IX_MIN_REGION_DISTANCE];
 
         LSR en = new LSR("en", "Latn", "US");
         LSR enGB = new LSR("en", "Latn", "GB");

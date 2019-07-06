@@ -47,9 +47,9 @@ struct LSR final : public UMemory {
      */
     static int32_t indexForRegion(const char *region);
 
-    UBool operator==(const LSR &other);
+    UBool operator==(const LSR &other) const;
 
-    inline UBool operator!=(const LSR &other) {
+    inline UBool operator!=(const LSR &other) const {
         return !operator==(other);
     }
 };

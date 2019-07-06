@@ -16,8 +16,10 @@
 #include "loclikelysubtags.h"
 #include "lsr.h"
 #include "uassert.h"
+#include "ucln_cmn.h"
 #include "uhash.h"
 #include "uinvchar.h"
+#include "umutex.h"
 #include "uresdata.h"
 #include "uresimp.h"
 
@@ -45,7 +47,10 @@ constexpr char PSEUDO_ACCENTS_PREFIX = '\'';  // -XA, -PSACCENT
 constexpr char PSEUDO_BIDI_PREFIX = '+';  // -XB, -PSBIDI
 constexpr char PSEUDO_CRACKED_PREFIX = ',';  // -XC, -PSCRACK
 
-/** Stores NUL-terminated char * strings with duplicate elimination. */
+/**
+ * Stores NUL-terminated char * strings with duplicate elimination.
+ * Pointers to old strings may change when a new string is added.
+ */
 class UniqueCharStrings {
 public:
     UniqueCharStrings(UErrorCode &errorCode) : strings(nullptr) {
@@ -61,6 +66,7 @@ public:
         delete strings;
     }
 
+    /** Returns/orphans the CharString that contains all strings. */
     CharString *orphanCharStrings() {
         CharString *result = strings;
         strings = nullptr;
@@ -104,124 +110,175 @@ private:
 
 // VisibleForTesting -- TODO: ??
 struct XLikelySubtagsData {
-    UResourceBundle *langInfoBundle;
-    CharString *strings;
+    UResourceBundle *langInfoBundle = nullptr;
+    UniqueCharStrings strings;
     CharStringMap languageAliases;
     CharStringMap regionAliases;
-    BytesTrie trie;
-    const LSR *lsrs;
-    int32_t lsrsLength;
+    const uint8_t *trieBytes = nullptr;
+    LSR *lsrs = nullptr;
+    int32_t lsrsLength = 0;
 
-    XLikelySubtagsData(LocalUResourceBundlePointer &&langInfo,
-                       UniqueCharStrings &strings,
-                       CharStringMap &&langAliases, CharStringMap &&rAliases,
-                       BytesTrie trie, LocalArray<LSR> &&lsrs, int32_t lsrsLength) :
-            langInfoBundle(langInfo.orphan()),
-            strings(strings.orphanCharStrings()),
-            languageAliases(std::move(langAliases)),
-            regionAliases(std::move(rAliases)),
-            trie(trie),
-            lsrs(lsrs.orphan()), lsrsLength(lsrsLength) {}
+    // distance/matcher data
+    const uint8_t *distanceTrieBytes = nullptr;
+    const uint8_t *regionToPartitions = nullptr;
+    const char **partitions = nullptr;
+    LSR *paradigms = nullptr;
+    int32_t paradigmsLength = 0;
+    const int32_t *distances = nullptr;
+
+    XLikelySubtagsData(UErrorCode &errorCode) : strings(errorCode) {}
 
     ~XLikelySubtagsData() {
         ures_close(langInfoBundle);
-        delete strings;
         delete[] lsrs;
+        uprv_free(partitions);
+        delete[] paradigms;
     }
 
     // VisibleForTesting -- TODO: ??
-    static XLikelySubtagsData *load(UErrorCode &errorCode) {
-        LocalUResourceBundlePointer langInfo(ures_openDirect(nullptr, "langInfo", &errorCode));
-        if (U_FAILURE(errorCode)) { return nullptr; }
+    void load(UErrorCode &errorCode) {
+        langInfoBundle = ures_openDirect(nullptr, "langInfo", &errorCode);
+        if (U_FAILURE(errorCode)) { return; }
         ResourceDataValue value;
-        ures_getValueWithFallback(langInfo.getAlias(), "likely", value, errorCode);
+        ures_getValueWithFallback(langInfoBundle, "likely", value, errorCode);
         ResourceTable likelyTable = value.getTable(errorCode);
-        if (U_FAILURE(errorCode)) { return nullptr; }
+        if (U_FAILURE(errorCode)) { return; }
 
         // Read all strings in the resource bundle and convert them to invariant char *.
-        UniqueCharStrings strings(errorCode);
         LocalMemory<int32_t> languageIndexes, regionIndexes, lsrSubtagIndexes;
-        LocalMemory<int32_t> partitionIndexes, paradigmSubtagIndexes;
         int32_t languagesLength = 0, regionsLength = 0, lsrSubtagsLength = 0;
-        int32_t partitionsLength = 0, paradigmSubtagsLength = 0;
-        if (!readStrings(likelyTable, "languageAliases", value, strings,
+        if (!readStrings(likelyTable, "languageAliases", value,
                          languageIndexes, languagesLength, errorCode) ||
-                !readStrings(likelyTable, "regionAliases", value, strings,
+                !readStrings(likelyTable, "regionAliases", value,
                              regionIndexes, regionsLength, errorCode) ||
-                !readStrings(likelyTable, "lsrs", value, strings,
-                             lsrSubtagIndexes,lsrSubtagsLength, errorCode) ||
-                !readStrings(likelyTable, "partitions", value, strings,
-                             partitionIndexes, partitionsLength, errorCode) ||
-                !readStrings(likelyTable, "paradigms", value, strings,
-                             paradigmSubtagIndexes, paradigmSubtagsLength, errorCode)) {
-            return nullptr;
+                !readStrings(likelyTable, "lsrs", value,
+                             lsrSubtagIndexes,lsrSubtagsLength, errorCode)) {
+            return;
         }
         if ((languagesLength & 1) != 0 ||
                 (regionsLength & 1) != 0 ||
-                (lsrSubtagsLength % 3) != 0 ||
-                (paradigmSubtagsLength % 3) != 0) {
+                (lsrSubtagsLength % 3) != 0) {
             errorCode = U_INVALID_FORMAT_ERROR;
-            return nullptr;
+            return;
         }
         if (lsrSubtagsLength == 0) {
             errorCode = U_MISSING_RESOURCE_ERROR;
-            return nullptr;
+            return;
         }
 
-        CharStringMap languageAliases(languagesLength / 2, errorCode);
+        languageAliases = CharStringMap(languagesLength / 2, errorCode);
         for (int32_t i = 0; i < languagesLength; i += 2) {
             languageAliases.put(strings.get(languageIndexes[i]),
                                 strings.get(languageIndexes[i + 1]), errorCode);
         }
 
-        CharStringMap regionAliases(regionsLength / 2, errorCode);
+        regionAliases = CharStringMap(regionsLength / 2, errorCode);
         for (int32_t i = 0; i < regionsLength; i += 2) {
             regionAliases.put(strings.get(regionIndexes[i]),
                               strings.get(regionIndexes[i + 1]), errorCode);
         }
-        if (U_FAILURE(errorCode)) { return nullptr; }
+        if (U_FAILURE(errorCode)) { return; }
 
         if (!likelyTable.findValue("trie", value)) {
             errorCode = U_MISSING_RESOURCE_ERROR;
-            return nullptr;
+            return;
         }
         int32_t length;
-        const uint8_t *trieBytes = value.getBinary(length, errorCode);
-        if (U_FAILURE(errorCode)) { return nullptr; }
-        BytesTrie trie(trieBytes);
+        trieBytes = value.getBinary(length, errorCode);
+        if (U_FAILURE(errorCode)) { return; }
 
-        int32_t lsrsLength = lsrSubtagsLength / 3;
-        LocalArray<LSR> lsrs(new LSR[lsrsLength]);
-        if (lsrs.isNull()) {
+        lsrsLength = lsrSubtagsLength / 3;
+        lsrs = new LSR[lsrsLength];
+        if (lsrs == nullptr) {
             errorCode = U_MEMORY_ALLOCATION_ERROR;
-            return nullptr;
+            return;
         }
         for (int32_t i = 0, j = 0; i < lsrSubtagsLength; i += 3, ++j) {
             lsrs[j] = LSR(strings.get(lsrSubtagIndexes[i]),
                           strings.get(lsrSubtagIndexes[i + 1]),
                           strings.get(lsrSubtagIndexes[i + 2]));
         }
-        if (U_FAILURE(errorCode)) { return nullptr; }
 
-        // TODO: partitions
-        // TODO: paradigms
-
-        XLikelySubtagsData *data = new XLikelySubtagsData(
-            std::move(langInfo),
-            strings, std::move(languageAliases), std::move(regionAliases),
-            trie, std::move(lsrs), lsrsLength);
-        if (data == nullptr) {
-            errorCode = U_MEMORY_ALLOCATION_ERROR;
+        // Also read distance/matcher data if available,
+        // to open & keep only one resource bundle pointer
+        // and to use one single UniqueCharStrings.
+        UErrorCode matchErrorCode = U_ZERO_ERROR;
+        ures_getValueWithFallback(langInfoBundle, "match", value, matchErrorCode);
+        if (matchErrorCode == U_MISSING_RESOURCE_ERROR) { return; }  // ok for likely subtags
+        if (U_FAILURE(matchErrorCode)) {  // error other than missing resource
+            errorCode = matchErrorCode;
+            return;
         }
-        return data;
+        ResourceTable matchTable = value.getTable(errorCode);
+        if (U_FAILURE(errorCode)) { return; }
+
+        if (matchTable.findValue("trie", value)) {
+            distanceTrieBytes = value.getBinary(length, errorCode);
+            if (U_FAILURE(errorCode)) { return; }
+        }
+
+        if (matchTable.findValue("regionToPartitions", value)) {
+            regionToPartitions = value.getBinary(length, errorCode);
+            if (U_FAILURE(errorCode)) { return; }
+            if (length < LSR::REGION_INDEX_LIMIT) {
+                errorCode = U_INVALID_FORMAT_ERROR;
+                return;
+            }
+        }
+
+        LocalMemory<int32_t> partitionIndexes, paradigmSubtagIndexes;
+        int32_t partitionsLength = 0, paradigmSubtagsLength = 0;
+        if (!readStrings(matchTable, "partitions", value,
+                         partitionIndexes, partitionsLength, errorCode) ||
+                !readStrings(matchTable, "paradigms", value,
+                             paradigmSubtagIndexes, paradigmSubtagsLength, errorCode)) {
+            return;
+        }
+        if ((paradigmSubtagsLength % 3) != 0) {
+            errorCode = U_INVALID_FORMAT_ERROR;
+            return;
+        }
+
+        if (partitionsLength > 0) {
+            partitions = static_cast<const char **>(
+                uprv_malloc(partitionsLength * sizeof(const char *)));
+            if (partitions == nullptr) {
+                errorCode = U_MEMORY_ALLOCATION_ERROR;
+                return;
+            }
+            for (int32_t i = 0; i < partitionsLength; ++i) {
+                partitions[i] = strings.get(partitionIndexes[i]);
+            }
+        }
+
+        if (paradigmSubtagsLength > 0) {
+            paradigmsLength = paradigmSubtagsLength / 3;
+            paradigms = new LSR[paradigmsLength];
+            if (paradigms == nullptr) {
+                errorCode = U_MEMORY_ALLOCATION_ERROR;
+                return;
+            }
+            for (int32_t i = 0, j = 0; i < paradigmSubtagsLength; i += 3, ++j) {
+                paradigms[j] = LSR(strings.get(paradigmSubtagIndexes[i]),
+                                   strings.get(paradigmSubtagIndexes[i + 1]),
+                                   strings.get(paradigmSubtagIndexes[i + 2]));
+            }
+        }
+
+        if (matchTable.findValue("distances", value)) {
+            distances = value.getIntVector(length, errorCode);
+            if (U_FAILURE(errorCode)) { return; }
+            if (length < 4) {  // LocaleDistance IX_LIMIT
+                errorCode = U_INVALID_FORMAT_ERROR;
+                return;
+            }
+        }
     }
 
 private:
-    static bool readStrings(const ResourceTable &likelyTable, const char *key, ResourceValue &value,
-                            UniqueCharStrings &strings,
-                            LocalMemory<int32_t> &indexes, int32_t &length,
-                            UErrorCode &errorCode) {
-        if (likelyTable.findValue(key, value)) {
+    bool readStrings(const ResourceTable &table, const char *key, ResourceValue &value,
+                     LocalMemory<int32_t> &indexes, int32_t &length, UErrorCode &errorCode) {
+        if (table.findValue(key, value)) {
             ResourceArray stringArray = value.getArray(errorCode);
             if (U_FAILURE(errorCode)) { return false; }
             length = stringArray.getSize();
@@ -241,40 +298,65 @@ private:
     }
 };
 
-// TODO: public static final XLikelySubtags INSTANCE = new XLikelySubtags(Data.load());
-const XLikelySubtags *XLikelySubtags::getSingleton(UErrorCode &errorCode) {
-    LocalPointer<XLikelySubtagsData> data(XLikelySubtagsData::load(errorCode));
-    if (U_FAILURE(errorCode)) { return nullptr; }
-    // TODO: init once, cache
-    XLikelySubtags *likely = new XLikelySubtags(*data);
-    if (likely == nullptr) {
-        errorCode = U_MEMORY_ALLOCATION_ERROR;
-    }
-    return likely;
+LocaleDistanceData::LocaleDistanceData(XLikelySubtagsData &data) :
+        distanceTrieBytes(data.distanceTrieBytes),
+        regionToPartitions(data.regionToPartitions),
+        partitions(data.partitions),
+        paradigms(data.paradigms), paradigmsLength(data.paradigmsLength),
+        distances(data.distances) {
+    data.partitions = nullptr;
+    data.paradigms = nullptr;
 }
 
-// VisibleForTesting
-LSR XLikelySubtags::makeMaximizedLsrFrom(const Locale &locale, UErrorCode &errorCode) const {
-    const char *name = locale.getName();
-    if (uprv_isAtSign(name[0]) && name[1] == 'x' && name[2] == '=') {  // name.startsWith("@x=")
-        // Private use language tag x-subtag-subtag...
-        return LSR(name, "", "");
-        // TODO: think about lifetime of LSR.language
+LocaleDistanceData::~LocaleDistanceData() {
+    uprv_free(partitions);
+    delete[] paradigms;
+}
+
+namespace {
+
+XLikelySubtags *gLikelySubtags = nullptr;
+UInitOnce gInitOnce = U_INITONCE_INITIALIZER;
+
+UBool U_CALLCONV cleanup() {
+    delete gLikelySubtags;
+    gLikelySubtags = nullptr;
+    gInitOnce.reset();
+    return TRUE;
+}
+
+}  // namespace
+
+void U_CALLCONV XLikelySubtags::initLikelySubtags(UErrorCode &errorCode) {
+    // This function is invoked only via umtx_initOnce().
+    U_ASSERT(gLikelySubtags == nullptr);
+    XLikelySubtagsData data(errorCode);
+    data.load(errorCode);
+    if (U_FAILURE(errorCode)) { return; }
+    gLikelySubtags = new XLikelySubtags(data);
+    if (gLikelySubtags == nullptr) {
+        errorCode = U_MEMORY_ALLOCATION_ERROR;
+        return;
     }
-    return makeMaximizedLsr(locale.getLanguage(), locale.getScript(), locale.getCountry(),
-                            locale.getVariant(), errorCode);
+    ucln_common_registerCleanup(UCLN_COMMON_LIKELY_SUBTAGS, cleanup);
+}
+
+const XLikelySubtags *XLikelySubtags::getSingleton(UErrorCode &errorCode) {
+    if (U_FAILURE(errorCode)) { return nullptr; }
+    umtx_initOnce(gInitOnce, &XLikelySubtags::initLikelySubtags, errorCode);
+    return gLikelySubtags;
 }
 
 XLikelySubtags::XLikelySubtags(XLikelySubtagsData &data) :
         langInfoBundle(data.langInfoBundle),
-        strings(data.strings),
+        strings(data.strings.orphanCharStrings()),
         languageAliases(std::move(data.languageAliases)),
         regionAliases(std::move(data.regionAliases)),
-        trie(data.trie),
+        trie(data.trieBytes),
         lsrs(data.lsrs),
-        lsrsLength(data.lsrsLength) {
+        lsrsLength(data.lsrsLength),
+        distanceData(data) {
     data.langInfoBundle = nullptr;
-    data.strings = nullptr;
     data.lsrs = nullptr;
 
     // Cache the result of looking up language="und" encoded as "*", and "und-Zzzz" ("**").
@@ -305,6 +387,18 @@ XLikelySubtags::~XLikelySubtags() {
     ures_close(langInfoBundle);
     delete strings;
     delete[] lsrs;
+}
+
+// VisibleForTesting
+LSR XLikelySubtags::makeMaximizedLsrFrom(const Locale &locale, UErrorCode &errorCode) const {
+    const char *name = locale.getName();
+    if (uprv_isAtSign(name[0]) && name[1] == 'x' && name[2] == '=') {  // name.startsWith("@x=")
+        // Private use language tag x-subtag-subtag...
+        return LSR(name, "", "");
+        // TODO: think about lifetime of LSR.language
+    }
+    return makeMaximizedLsr(locale.getLanguage(), locale.getScript(), locale.getCountry(),
+                            locale.getVariant(), errorCode);
 }
 
 namespace {

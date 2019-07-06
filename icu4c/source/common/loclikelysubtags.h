@@ -20,9 +20,14 @@ U_NAMESPACE_BEGIN
 
 struct XLikelySubtagsData;
 
-/** const char * keys & values. */
+/**
+ * Map of const char * keys & values.
+ * Stores pointers as is: Does not own/copy/adopt/release strings.
+ */
 class CharStringMap final : public UMemory {
 public:
+    /** Constructs an unusable non-map. */
+    CharStringMap() : map(nullptr) {}
     CharStringMap(int32_t size, UErrorCode &errorCode) {
         map = uhash_openSize(uhash_hashChars, uhash_compareChars, uhash_compareChars,
                              size, &errorCode);
@@ -35,7 +40,11 @@ public:
         uhash_close(map);
     }
 
-    CharStringMap &operator=(CharStringMap &&other) = delete;
+    CharStringMap &operator=(CharStringMap &&other) {
+        map = other.map;
+        other.map = nullptr;
+        return *this;
+    }
     CharStringMap &operator=(const CharStringMap &other) = delete;
 
     const char *get(const char *key) const { return static_cast<const char *>(uhash_get(map, key)); }
@@ -45,6 +54,18 @@ public:
 
 private:
     UHashtable *map;
+};
+
+struct LocaleDistanceData {
+    LocaleDistanceData(XLikelySubtagsData &data);
+    ~LocaleDistanceData();
+
+    const uint8_t *distanceTrieBytes = nullptr;
+    const uint8_t *regionToPartitions = nullptr;
+    const char **partitions = nullptr;
+    const LSR *paradigms = nullptr;
+    int32_t paradigmsLength = 0;
+    const int32_t *distances = nullptr;
 };
 
 class XLikelySubtags final : public UMemory {
@@ -63,7 +84,25 @@ public:
     LSR minimizeSubtags(const char *languageIn, const char *scriptIn, const char *regionIn,
                         ULocale.Minimize fieldToFavor, UErrorCode &errorCode) const;
 #endif
+
+    // visible for LocaleDistance
+    const LocaleDistanceData &getDistanceData() const { return distanceData; }
+
 private:
+    XLikelySubtags(XLikelySubtagsData &data);
+
+    static void initLikelySubtags(UErrorCode &errorCode);
+
+    LSR makeMaximizedLsr(const char *language, const char *script, const char *region,
+                         const char *variant, UErrorCode &errorCode) const;
+
+    /**
+     * Raw access to addLikelySubtags. Input must be in canonical format, eg "en", not "eng" or "EN".
+     */
+    LSR maximize(const char *language, const char *script, const char *region) const;
+
+    static int32_t trieNext(BytesTrie &iter, const char *s, int32_t i);
+
     UResourceBundle *langInfoBundle;
     CharString *strings;
     CharStringMap languageAliases;
@@ -80,17 +119,8 @@ private:
     const LSR *lsrs;
     int32_t lsrsLength;
 
-    XLikelySubtags(XLikelySubtagsData &data);
-
-    LSR makeMaximizedLsr(const char *language, const char *script, const char *region,
-                         const char *variant, UErrorCode &errorCode) const;
-
-    /**
-     * Raw access to addLikelySubtags. Input must be in canonical format, eg "en", not "eng" or "EN".
-     */
-    LSR maximize(const char *language, const char *script, const char *region) const;
-
-    static int32_t trieNext(BytesTrie &iter, const char *s, int32_t i);
+    // distance/matcher data: see comment in XLikelySubtagsData::load()
+    LocaleDistanceData distanceData;
 };
 
 U_NAMESPACE_END

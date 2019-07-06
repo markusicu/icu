@@ -57,34 +57,9 @@ public:
     }
 
 private:
-    LocaleDistance(LocaleDistanceData &data);
+    LocaleDistance(const LocaleDistanceData &data);
 
-    // The trie maps each dlang+slang+dscript+sscript+dregion+sregion
-    // (encoded in ASCII with bit 7 set on the last character of each subtag) to a distance.
-    // There is also a trie value for each subsequence of whole subtags.
-    // One '*' is used for a (desired, supported) pair of "und", "Zzzz"/"", or "ZZ"/"".
-    BytesTrie trie;
-
-    /**
-     * Maps each region to zero or more single-character partitions.
-     */
-    const uint8_t *regionToPartitionsIndex;
-    const char **partitionArrays;
-
-    /**
-     * Used to get the paradigm region for a cluster, if there is one.
-     */
-    LSR *paradigmLSRs;
-    int32_t paradigmLSRsLength;
-
-    int32_t defaultLanguageDistance;
-    int32_t defaultScriptDistance;
-    int32_t defaultRegionDistance;
-    int32_t minRegionDistance;
-    int32_t defaultDemotionPerDesiredLocale;
-
-    // TODO: VisibleForTesting
-    // TODO: public static final LocaleDistance INSTANCE = new LocaleDistance(Data.load());
+    static void initLocaleDistance(UErrorCode &errorCode);
 
     static int32_t getDesSuppScriptDistance(BytesTrie &iter, uint64_t startState,
                                             const char *desired, const char *supported);
@@ -107,6 +82,30 @@ private:
     int32_t getDefaultRegionDistance() const {
         return defaultRegionDistance;
     }
+
+    // The trie maps each dlang+slang+dscript+sscript+dregion+sregion
+    // (encoded in ASCII with bit 7 set on the last character of each subtag) to a distance.
+    // There is also a trie value for each subsequence of whole subtags.
+    // One '*' is used for a (desired, supported) pair of "und", "Zzzz"/"", or "ZZ"/"".
+    BytesTrie trie;
+
+    /**
+     * Maps each region to zero or more single-character partitions.
+     */
+    const uint8_t *regionToPartitionsIndex;
+    const char **partitionArrays;
+
+    /**
+     * Used to get the paradigm region for a cluster, if there is one.
+     */
+    const LSR *paradigmLSRs;
+    int32_t paradigmLSRsLength;
+
+    int32_t defaultLanguageDistance;
+    int32_t defaultScriptDistance;
+    int32_t defaultRegionDistance;
+    int32_t minRegionDistance;
+    int32_t defaultDemotionPerDesiredLocale;
 };
 
 U_NAMESPACE_END

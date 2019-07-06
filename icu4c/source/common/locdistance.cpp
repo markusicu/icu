@@ -12,8 +12,11 @@
 #include "unicode/ures.h"
 #include "cstring.h"
 #include "locdistance.h"
+#include "loclikelysubtags.h"
 #include "uassert.h"
+#include "ucln_cmn.h"
 #include "uinvchar.h"
+#include "umutex.h"
 
 U_NAMESPACE_BEGIN
 
@@ -36,109 +39,66 @@ enum {
     IX_LIMIT
 };
 
-}  // namespace
-#if 0
-// TODO: VisibleForTesting??
-struct LocaleDistanceData final {
-    const uint8_t *trie;
-    const uint8_t *regionToPartitionsIndex;
-    const char **partitionArrays;
-    LSR *paradigmLSRs;
-    int32_t paradigmLSRsLength;
-    int32_t *distances;
+LocaleDistance *gLocaleDistance = nullptr;
+UInitOnce gInitOnce = U_INITONCE_INITIALIZER;
 
-    public LocaleDistanceData(byte[] trie,
-            byte[] regionToPartitionsIndex, String[] partitionArrays,
-            Set<LSR> paradigmLSRs, int32_t[] distances) {
-        this.trie = trie;
-        this.regionToPartitionsIndex = regionToPartitionsIndex;
-        this.partitionArrays = partitionArrays;
-        this.paradigmLSRs = paradigmLSRs;
-        this.distances = distances;
-    }
-
-    private static UResource.Value getValue(UResource.Table table,
-            String key, UResource.Value value) {
-        if (!table.findValue(key, value)) {
-            throw new MissingResourceException(
-                    "langInfo.res missing data", "", "match/" + key);
-        }
-        return value;
-    }
-
-    // VisibleForTesting
-    static LocaleDistanceData load(UErrorCode &errorCode) {
-        ICUResourceBundle langInfo = ICUResourceBundle.getBundleInstance(
-                ICUData.ICU_BASE_NAME, "langInfo",
-                ICUResourceBundle.ICU_DATA_CLASS_LOADER, ICUResourceBundle.OpenType.DIRECT);
-        UResource.Value value = langInfo.getValueWithFallback("match");
-        UResource.Table matchTable = value.getTable();
-
-        ByteBuffer buffer = getValue(matchTable, "trie", value).getBinary();
-        byte[] trie = new byte[buffer.remaining()];
-        buffer.get(trie);
-
-        buffer = getValue(matchTable, "regionToPartitions", value).getBinary();
-        byte[] regionToPartitions = new byte[buffer.remaining()];
-        buffer.get(regionToPartitions);
-        if (regionToPartitions.length < LSR.REGION_INDEX_LIMIT) {
-            throw new MissingResourceException(
-                    "langInfo.res binary data too short", "", "match/regionToPartitions");
-        }
-
-        String[] partitions = getValue(matchTable, "partitions", value).getStringArray();
-
-        Set<LSR> paradigmLSRs;
-        if (matchTable.findValue("paradigms", value)) {
-            String[] paradigms = value.getStringArray();
-            paradigmLSRs = new HashSet<>(paradigms.length / 3);
-            for (int32_t i = 0; i < paradigms.length; i += 3) {
-                paradigmLSRs.add(new LSR(paradigms[i], paradigms[i + 1], paradigms[i + 2]));
-            }
-        } else {
-            paradigmLSRs = Collections.emptySet();
-        }
-
-        int32_t[] distances = getValue(matchTable, "distances", value).getIntVector();
-        if (distances.length < IX_LIMIT) {
-            throw new MissingResourceException(
-                    "langInfo.res intvector too short", "", "match/distances");
-        }
-
-        return LocaleDistanceData(trie, regionToPartitions, partitions, paradigmLSRs, distances);
-    }
+UBool U_CALLCONV cleanup() {
+    delete gLocaleDistance;
+    gLocaleDistance = nullptr;
+    gInitOnce.reset();
+    return TRUE;
 }
-#endif
+
+}  // namespace
+
+void U_CALLCONV LocaleDistance::initLocaleDistance(UErrorCode &errorCode) {
+    // This function is invoked only via umtx_initOnce().
+    U_ASSERT(gLocaleDistance == nullptr);
+    const XLikelySubtags &likely = *XLikelySubtags::getSingleton(errorCode);
+    if (U_FAILURE(errorCode)) { return; }
+    const LocaleDistanceData &data = likely.getDistanceData();
+    if (data.distanceTrieBytes == nullptr ||
+            data.regionToPartitions == nullptr || data.partitions == nullptr ||
+            // ok if no paradigms
+            data.distances == nullptr) {
+        errorCode = U_MISSING_RESOURCE_ERROR;
+        return;
+    }
+    gLocaleDistance = new LocaleDistance(data);
+    if (gLocaleDistance == nullptr) {
+        errorCode = U_MEMORY_ALLOCATION_ERROR;
+        return;
+    }
+    ucln_common_registerCleanup(UCLN_COMMON_LOCALE_DISTANCE, cleanup);
+}
+
 // TODO: VisibleForTesting
-// TODO: public static final LocaleDistance INSTANCE = new LocaleDistance(Data.load());
 const LocaleDistance *LocaleDistance::getSingleton(UErrorCode &errorCode) {
     if (U_FAILURE(errorCode)) { return nullptr; }
-    return nullptr;  // TODO
+    umtx_initOnce(gInitOnce, &LocaleDistance::initLocaleDistance, errorCode);
+    return gLocaleDistance;
 }
 
-#if 0
-private LocaleDistance(LocaleDistanceData &data) {
-    this.trie = new BytesTrie(data.trie, 0);
-    this.regionToPartitionsIndex = data.regionToPartitionsIndex;
-    this.partitionArrays = data.partitionArrays;
-    this.paradigmLSRs = data.paradigmLSRs;
-    defaultLanguageDistance = data.distances[IX_DEF_LANG_DISTANCE];
-    defaultScriptDistance = data.distances[IX_DEF_SCRIPT_DISTANCE];
-    defaultRegionDistance = data.distances[IX_DEF_REGION_DISTANCE];
-    this.minRegionDistance = data.distances[IX_MIN_REGION_DISTANCE];
-
-    LSR en = new LSR("en", "Latn", "US");
-    LSR enGB = new LSR("en", "Latn", "GB");
+LocaleDistance::LocaleDistance(const LocaleDistanceData &data) :
+        trie(data.distanceTrieBytes),
+        regionToPartitionsIndex(data.regionToPartitions), partitionArrays(data.partitions),
+        paradigmLSRs(data.paradigms), paradigmLSRsLength(data.paradigmsLength),
+        defaultLanguageDistance(data.distances[IX_DEF_LANG_DISTANCE]),
+        defaultScriptDistance(data.distances[IX_DEF_SCRIPT_DISTANCE]),
+        defaultRegionDistance(data.distances[IX_DEF_REGION_DISTANCE]),
+        minRegionDistance(data.distances[IX_MIN_REGION_DISTANCE]) {
+    LSR en("en", "Latn", "US");
+    LSR enGB("en", "Latn", "GB");
     defaultDemotionPerDesiredLocale = getBestIndexAndDistance(en, &enGB, 1,
             50, ULOCMATCH_FAVOR_LANGUAGE) & 0xff;
 }
-#endif
+
 #if 0
 // TODO: VisibleForTesting
 int32_t testOnlyDistance(const Locale &desired, const Locale &supported,
                          int32_t threshold, ULocMatchFavorSubtag favorSubtag,
                          UErrorCode &errorCode) const {
-    const XLikelySubtags &likely = XLikelySubtags::getSingleton(errorCode);
+    const XLikelySubtags &likely = *XLikelySubtags::getSingleton(errorCode);
     if (U_FAILURE(errorCode)) { return ABOVE_THRESHOLD; }
     LSR supportedLSR = likely.makeMaximizedLsrFrom(supported);
     LSR desiredLSR = likely.makeMaximizedLsrFrom(desired);
@@ -380,10 +340,14 @@ int32_t LocaleDistance::trieNext(BytesTrie &iter, const char *s, bool wantValue)
     }
 }
 
-#if 0
-UBool LocaleDistance::isParadigmLSR(LSR lsr) const {
-    return paradigmLSRs.contains(lsr);
+UBool LocaleDistance::isParadigmLSR(const LSR &lsr) const {
+    // Linear search for a very short list (length 6 as of 2019).
+    // If there are many paradigm LSRs we should use a hash set.
+    U_ASSERT(paradigmLSRsLength <= 15);
+    for (int32_t i = 0; i < paradigmLSRsLength; ++i) {
+        if (lsr == paradigmLSRs[i]) { return true; }
+    }
+    return false;
 }
-#endif
 
 U_NAMESPACE_END

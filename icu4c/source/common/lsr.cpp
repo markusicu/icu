@@ -59,12 +59,12 @@ LSR &LSR::operator=(LSR &&other) U_NOEXCEPT {
     return *this;
 }
 
-UBool LSR::operator==(const LSR &other) {
+UBool LSR::operator==(const LSR &other) const {
     return uprv_strcmp(language, other.language) == 0 &&
         uprv_strcmp(script, other.script) == 0 &&
         regionIndex == other.regionIndex &&
-        // Compare regions in case both are ill-formed (and their indexes are 0).
-        uprv_strcmp(region, other.region) == 0;
+        // Compare regions if both are ill-formed (and their indexes are 0).
+        (regionIndex > 0 || uprv_strcmp(region, other.region) == 0);
 }
 
 namespace {

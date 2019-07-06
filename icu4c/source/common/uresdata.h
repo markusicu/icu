@@ -500,6 +500,8 @@ public:
     const ResourceData *pResData;
 
 private:
+    // TODO: If UResourceBundle.fResData becomes a pointer,
+    // then remove this field again.
     ResourceData resData;
     Resource res;
 };
