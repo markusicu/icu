@@ -178,7 +178,7 @@ public class LocaleMatcherTest extends TestFmwk {
 
     @Test
     public void testEmpty() {
-        final LocaleMatcher matcher = newLocaleMatcher("");
+        final LocaleMatcher matcher = LocaleMatcher.builder().build();
         assertNull(matcher.getBestMatch(ULocale.FRENCH));
     }
 

@@ -1053,7 +1053,7 @@ public:
          * @return TRUE if next() can be called again.
          * @draft ICU 65
          */
-        UBool hasNext() const override { it_ != end_; }
+        UBool hasNext() const override { return it_ != end_; }
 
         /**
          * @return the next locale.

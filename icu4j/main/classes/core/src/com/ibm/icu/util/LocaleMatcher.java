@@ -54,15 +54,16 @@ import com.ibm.icu.impl.locale.XLikelySubtags;
  * 3. other supported locales.
  * This may change in future versions.
  *
- * <p>All classes implementing this interface should be immutable. Often a
- * product will just need one static instance, built with the languages
+ * <p>Often a product will just need one matcher instance, built with the languages
  * that it supports. However, it may want multiple instances with different
  * default languages based on additional information, such as the domain.
+ *
+ * <p>This class is not intended for public subclassing.
  *
  * @author markdavis@google.com
  * @stable ICU 4.4
  */
-public class LocaleMatcher {
+public final class LocaleMatcher {
     private static final LSR UND_LSR = new LSR("und","","");
     private static final ULocale UND_ULOCALE = new ULocale("und");
     private static final Locale UND_LOCALE = new Locale("und");
@@ -334,7 +335,7 @@ public class LocaleMatcher {
      * @draft ICU 65
      * @provisional This API might change or be removed in a future release.
      */
-    public static class Builder {
+    public static final class Builder {
         private List<ULocale> supportedLocales;
         private int thresholdDistance = -1;
         private Demotion demotion;
@@ -514,7 +515,7 @@ public class LocaleMatcher {
         @Override
         public String toString() {
             StringBuilder s = new StringBuilder().append("{LocaleMatcher.Builder");
-            if (!supportedLocales.isEmpty()) {
+            if (supportedLocales != null && !supportedLocales.isEmpty()) {
                 s.append(" supported={").append(supportedLocales.toString()).append('}');
             }
             if (defaultLocale != null) {
@@ -572,33 +573,36 @@ public class LocaleMatcher {
     private LocaleMatcher(Builder builder) {
         thresholdDistance = builder.thresholdDistance < 0 ?
                 LocaleDistance.INSTANCE.getDefaultScriptDistance() : builder.thresholdDistance;
+        int supportedLocalesLength = builder.supportedLocales != null ?
+                builder.supportedLocales.size() : 0;
+        ULocale udef = builder.defaultLocale;
+        Locale def = null;
+        int idef = -1;
         // Store the supported locales in input order,
         // so that when different types are used (e.g., java.util.Locale)
         // we can return those by parallel index.
-        int supportedLocalesLength = builder.supportedLocales.size();
         supportedULocales = new ULocale[supportedLocalesLength];
         supportedLocales = new Locale[supportedLocalesLength];
         // Supported LRSs in input order.
         LSR lsrs[] = new LSR[supportedLocalesLength];
         // Also find the first supported locale whose LSR is
         // the same as that for the default locale.
-        ULocale udef = builder.defaultLocale;
-        Locale def = null;
         LSR defLSR = null;
-        int idef = -1;
         if (udef != null) {
             def = udef.toLocale();
             defLSR = getMaximalLsrOrUnd(udef);
         }
         int i = 0;
-        for (ULocale locale : builder.supportedLocales) {
-            supportedULocales[i] = locale;
-            supportedLocales[i] = locale.toLocale();
-            LSR lsr = lsrs[i] = getMaximalLsrOrUnd(locale);
-            if (idef < 0 && defLSR != null && lsr.equals(defLSR)) {
-                idef = i;
+        if (supportedLocalesLength > 0) {
+            for (ULocale locale : builder.supportedLocales) {
+                supportedULocales[i] = locale;
+                supportedLocales[i] = locale.toLocale();
+                LSR lsr = lsrs[i] = getMaximalLsrOrUnd(locale);
+                if (idef < 0 && defLSR != null && lsr.equals(defLSR)) {
+                    idef = i;
+                }
+                ++i;
             }
-            ++i;
         }
 
         // We need an unordered map from LSR to first supported locale with that LSR,
@@ -609,6 +613,12 @@ public class LocaleMatcher {
         // 2. Priority locales in builder order.
         // 3. Remaining locales in builder order.
         supportedLsrToIndex = new LinkedHashMap<>(supportedLocalesLength);
+        // Note: We could work with a single LinkedHashMap by storing ~i (the binary-not index)
+        // for the default and paradigm locales, counting the number of those locales,
+        // and keeping two indexes to fill the LSR and index arrays with
+        // priority vs. normal locales. In that loop we would need to entry.setValue(~i)
+        // to restore non-negative indexes in the map.
+        // Probably saves little but less readable.
         Map<LSR, Integer> otherLsrToIndex = null;
         if (idef >= 0) {
             supportedLsrToIndex.put(defLSR, idef);
@@ -624,8 +634,14 @@ public class LocaleMatcher {
                 defLSR = lsr;
                 idef = 0;
                 supportedLsrToIndex.put(lsr, 0);
-            } else if (lsr.equals(defLSR)) {
-                // already in the map
+            } else if (idef >= 0 && lsr.equals(defLSR)) {
+                // lsr.equals(defLSR) means that this supported locale is
+                // a duplicate of the default locale.
+                // Either an explicit default locale is supported, and we added it before the loop,
+                // or there is no explicit default locale, and this is
+                // a duplicate of the first supported locale.
+                // In both cases, idef >= 0 now, so otherwise we can skip the comparison.
+                // For a duplicate, putIfAbsent() is a no-op, so nothing to do.
             } else if (LocaleDistance.INSTANCE.isParadigmLSR(lsr)) {
                 putIfAbsent(supportedLsrToIndex, lsr, i);
             } else {
@@ -639,9 +655,9 @@ public class LocaleMatcher {
         if (otherLsrToIndex != null) {
             supportedLsrToIndex.putAll(otherLsrToIndex);
         }
-        int numSuppLsrs = supportedLsrToIndex.size();
-        supportedLsrs = new LSR[numSuppLsrs];
-        supportedIndexes = new int[numSuppLsrs];
+        int supportedLsrsLength = supportedLsrToIndex.size();
+        supportedLsrs = new LSR[supportedLsrsLength];
+        supportedIndexes = new int[supportedLsrsLength];
         i = 0;
         for (Map.Entry<LSR, Integer> entry : supportedLsrToIndex.entrySet()) {
             supportedLsrs[i] = entry.getKey();  // = lsrs[entry.getValue()]

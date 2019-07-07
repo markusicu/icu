@@ -131,11 +131,11 @@ class XLikelySubtags;
  * 3. other supported locales.
  * This may change in future versions.
  *
- * TODO: no subclasses, just immutable
- * <p>All classes implementing this interface should be immutable. Often a
- * product will just need one static instance, built with the languages
+ * <p>Often a product will just need one matcher instance, built with the languages
  * that it supports. However, it may want multiple instances with different
  * default languages based on additional information, such as the domain.
+ *
+ * <p>This class is not intended for public subclassing.
  *
  * @draft ICU 65
  */
@@ -323,13 +323,36 @@ public:
          */
         template<typename Iter>
         Builder &setSupportedLocales(Iter begin, Iter end) {
+            if (U_FAILURE(errorCode_)) { return *this; }
             clearSupportedLocales();
             while (begin != end) {
                 addSupportedLocale(*begin++);
             }
             return *this;
         }
+
+#if 0
+        // TODO
+        template<typename Iterable>
+        Builder &setSupportedLocales(Iterable locales) {
+            if (U_FAILURE(errorCode_)) { return *this; }
+            clearSupportedLocales();
+            for (auto &locale : locales) {
+                addSupportedLocale(locale);
+            }
+            return *this;
+        }
+#endif
         // TODO: consider adding a variant that also takes & calls a Converter
+        template<typename Iter, typename Conv>
+        Builder &setSupportedLocalesViaConverter(Iter begin, Iter end, Conv converter) {
+            if (U_FAILURE(errorCode_)) { return *this; }
+            clearSupportedLocales();
+            while (begin != end) {
+                addSupportedLocale(converter(*begin++));
+            }
+            return *this;
+        }
         // TODO: consider then doing the same with a Locale::ConvertingIterator
 
         /**
