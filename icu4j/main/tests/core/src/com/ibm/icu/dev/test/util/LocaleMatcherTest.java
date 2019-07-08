@@ -11,6 +11,7 @@ package com.ibm.icu.dev.test.util;
 
 import java.io.BufferedReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -121,6 +122,58 @@ public class LocaleMatcherTest extends TestFmwk {
         assertEquals(ULocale.FRENCH, matcher.getBestMatch(ULocale.JAPAN));
     }
 
+    private static final String locString(ULocale loc) {
+        return loc != null ? loc.getName() : "(null)";
+    }
+
+    @Test
+    public void testSupportedDefault() {
+        // The default locale is one of the supported locales.
+        List<ULocale> locales = Arrays.asList(
+                new ULocale("fr"), new ULocale("en_GB"), new ULocale("en"));
+        LocaleMatcher matcher = LocaleMatcher.builder().
+            setSupportedULocales(locales).
+            setDefaultULocale(locales.get(1)).
+            build();
+        ULocale best = matcher.getBestMatch("en_GB");
+        assertEquals("getBestMatch(en_GB)", "en_GB", locString(best));
+        best = matcher.getBestMatch("en_US");
+        assertEquals("getBestMatch(en_US)", "en", locString(best));
+        best = matcher.getBestMatch("fr_FR");
+        assertEquals("getBestMatch(fr_FR)", "fr", locString(best));
+        best = matcher.getBestMatch("ja_JP");
+        assertEquals("getBestMatch(ja_JP)", "en_GB", locString(best));
+        LocaleMatcher.Result result = matcher.getBestMatchResult(new ULocale("ja_JP"));
+        assertEquals("getBestMatchResult(ja_JP).supp",
+                     "en_GB", locString(result.getSupportedULocale()));
+        assertEquals("getBestMatchResult(ja_JP).suppIndex",
+                     1, result.getSupportedIndex());
+    }
+
+    @Test
+    public void testUnsupportedDefault() {
+        // The default locale does not match any of the supported locales.
+        List<ULocale> locales = Arrays.asList(
+                new ULocale("fr"), new ULocale("en_GB"), new ULocale("en"));
+        LocaleMatcher matcher = LocaleMatcher.builder().
+            setSupportedULocales(locales).
+            setDefaultULocale(new ULocale("de")).
+            build();
+        ULocale best = matcher.getBestMatch("en_GB");
+        assertEquals("getBestMatch(en_GB)", "en_GB", locString(best));
+        best = matcher.getBestMatch("en_US");
+        assertEquals("getBestMatch(en_US)", "en", locString(best));
+        best = matcher.getBestMatch("fr_FR");
+        assertEquals("getBestMatch(fr_FR)", "fr", locString(best));
+        best = matcher.getBestMatch("ja_JP");
+        assertEquals("getBestMatch(ja_JP)", "de", locString(best));
+        LocaleMatcher.Result result = matcher.getBestMatchResult(new ULocale("ja_JP"));
+        assertEquals("getBestMatchResult(ja_JP).supp",
+                     "de", locString(result.getSupportedULocale()));
+        assertEquals("getBestMatchResult(ja_JP).suppIndex",
+                     -1, result.getSupportedIndex());
+    }
+
     @Test
     public void testFallback() {
         // check that script fallbacks are handled right
@@ -180,6 +233,9 @@ public class LocaleMatcherTest extends TestFmwk {
     public void testEmpty() {
         final LocaleMatcher matcher = LocaleMatcher.builder().build();
         assertNull(matcher.getBestMatch(ULocale.FRENCH));
+        LocaleMatcher.Result result = matcher.getBestMatchResult(ULocale.FRENCH);
+        assertNull(result.getSupportedULocale());
+        assertEquals(-1, result.getSupportedIndex());
     }
 
     static final ULocale ENGLISH_CANADA = new ULocale("en_CA");

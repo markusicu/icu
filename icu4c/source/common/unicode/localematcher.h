@@ -295,7 +295,7 @@ public:
          * @return this Builder object
          * @draft ICU 65
          */
-        Builder &setSupportedLocales(StringPiece locales);
+        Builder &setSupportedLocalesFromListString(StringPiece locales);
 
         /**
          * Copies the supported locales, preserving iteration order.
@@ -331,19 +331,21 @@ public:
             return *this;
         }
 
-#if 0
-        // TODO
-        template<typename Iterable>
-        Builder &setSupportedLocales(Iterable locales) {
-            if (U_FAILURE(errorCode_)) { return *this; }
-            clearSupportedLocales();
-            for (auto &locale : locales) {
-                addSupportedLocale(locale);
-            }
-            return *this;
-        }
-#endif
-        // TODO: consider adding a variant that also takes & calls a Converter
+        /**
+         * Copies the supported locales from the begin/end range, preserving iteration order.
+         * Calls the converter to convert each *begin to a Locale or const Locale &.
+         * Clears any previously set/added supported locales first.
+         * Duplicates are allowed, and are not removed.
+         *
+         * Each of the iterator parameter values must be an
+         * input iterator whose value is convertible to const Locale &.
+         *
+         * @param begin Start of range.
+         * @param end Exclusive end of range.
+         * @param conv Converter from *begin to const Locale & or compatible.
+         * @return this Builder object
+         * @draft ICU 65
+         */
         template<typename Iter, typename Conv>
         Builder &setSupportedLocalesViaConverter(Iter begin, Iter end, Conv converter) {
             if (U_FAILURE(errorCode_)) { return *this; }
@@ -353,7 +355,6 @@ public:
             }
             return *this;
         }
-        // TODO: consider then doing the same with a Locale::ConvertingIterator
 
         /**
          * Adds another supported locale.
@@ -497,7 +498,7 @@ public:
      * @return the best-matching supported locale.
      * @draft ICU 65
      */
-    const Locale *getBestMatch(StringPiece desiredLocaleList, UErrorCode &errorCode) const;
+    const Locale *getBestMatchForListString(StringPiece desiredLocaleList, UErrorCode &errorCode) const;
 
     /**
      * Returns the best match between the desired locale and the supported locales.

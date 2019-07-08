@@ -625,7 +625,10 @@ public final class LocaleMatcher {
         }
         i = 0;
         for (ULocale locale : supportedULocales) {
-            if (i == idef) { continue; }
+            if (i == idef) {
+                ++i;
+                continue;
+            }
             LSR lsr = lsrs[i];
             if (defLSR == null) {
                 assert i == 0;

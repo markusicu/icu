@@ -1064,6 +1064,44 @@ public:
     private:
         Iter it_, end_;
     };
+
+    /**
+     * A generic Locale iterator implementation over Locale input iterators.
+     * Calls the converter to convert each *begin to a const Locale &.
+     * @draft ICU 65
+     */
+    template<typename Iter, typename Conv>
+    class ConvertingIterator : public Iterator, public UMemory {
+    public:
+        /**
+         * Constructs an iterator from a begin/end range.
+         * Each of the iterator parameter values must be an
+         * input iterator whose value the converter converts to const Locale &.
+         *
+         * @param begin Start of range.
+         * @param end Exclusive end of range.
+         * @param conv Converter from *begin to const Locale & or compatible.
+         * @draft ICU 65
+         */
+        ConvertingIterator(Iter begin, Iter end, Conv converter) :
+                it_(begin), end_(end), converter_(converter) {}
+
+        /**
+         * @return TRUE if next() can be called again.
+         * @draft ICU 65
+         */
+        UBool hasNext() const override { return it_ != end_; }
+
+        /**
+         * @return the next locale.
+         * @draft ICU 65
+         */
+        const Locale &next() override { return converter_(*it_++); }
+
+    private:
+        Iter it_, end_;
+        Conv converter_;
+    };
 #endif  // U_HIDE_DRAFT_API
 
 protected: /* only protected for testing purposes. DO NOT USE. */

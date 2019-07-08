@@ -168,7 +168,8 @@ bool LocaleMatcher::Builder::ensureSupportedLocaleVector() {
 }
 
 #if 0
-LocaleMatcher::Builder &LocaleMatcher::Builder::setSupportedLocales(StringPiece locales) {
+LocaleMatcher::Builder &LocaleMatcher::Builder::setSupportedLocalesFromListString(
+        StringPiece locales) {
     if (U_FAILURE(errorCode_)) { return *this; }
     clearSupportedLocales();
     if (!ensureSupportedLocaleVector()) { return *this; }
@@ -320,11 +321,11 @@ LocaleMatcher::LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
         supportedLsrs(nullptr), supportedIndexes(nullptr), supportedLsrsLength(0),
         ownedDefaultLocale(nullptr), defaultLocale(nullptr), defaultLocaleIndex(-1) {
     if (U_FAILURE(errorCode)) { return; }
-    // TODO: begin remove
+#if 0  // TODO: begin remove
     Locale locale("zh-TW");
     LSR lsr = getMaximalLsrOrUnd(likelySubtags, locale, errorCode);
     printf("'%s' --> maximal '%s-%s-%s'\n", locale.getName(), lsr.language, lsr.script, lsr.region);
-    // TODO: end remove
+#endif  // TODO: end remove
 
     if (thresholdDistance < 0) {
         thresholdDistance = localeDistance.getDefaultScriptDistance();
@@ -347,6 +348,8 @@ LocaleMatcher::LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
             errorCode = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
+        // If the constructor fails partway, we need null pointers for destructibility.
+        uprv_memset(supportedLocales, 0, supportedLocalesLength * sizeof(const Locale *));
         // Also find the first supported locale whose LSR is
         // the same as that for the default locale.
         LSR builderDefaultLSR;
@@ -609,7 +612,8 @@ const Locale *LocaleMatcher::getBestMatch(Locale::Iterator &desiredLocales,
 }
 
 #if 0
-const Locale *LocaleMatcher::getBestMatch(StringPiece desiredLocaleList, UErrorCode &errorCode) const {
+const Locale *LocaleMatcher::getBestMatchForListString(
+        StringPiece desiredLocaleList, UErrorCode &errorCode) const {
     if (U_FAILURE(errorCode)) { return nullptr; }
     return getBestMatch(LocalePriorityList.add(desiredLocaleList).build());
 }
