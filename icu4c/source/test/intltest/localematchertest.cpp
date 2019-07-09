@@ -33,6 +33,7 @@ public:
     void testBasics();
     void testSupportedDefault();
     void testUnsupportedDefault();
+    void testDemotion();
 };
 
 extern IntlTest *createLocaleMatcherTest() {
@@ -48,6 +49,7 @@ void LocaleMatcherTest::runIndexedTest(int32_t index, UBool exec, const char *&n
     TESTCASE_AUTO(testBasics);
     TESTCASE_AUTO(testSupportedDefault);
     TESTCASE_AUTO(testUnsupportedDefault);
+    TESTCASE_AUTO(testDemotion);
     TESTCASE_AUTO_END;
 }
 
@@ -183,4 +185,27 @@ void LocaleMatcherTest::testUnsupportedDefault() {
                  "de", locString(result.getSupportedLocale()));
     assertEquals("getBestMatchResult(ja_JP).suppIndex",
                  -1, result.getSupportedIndex());
+}
+
+void LocaleMatcherTest::testDemotion() {
+    IcuTestErrorCode errorCode(*this, "testDemotion");
+    Locale supported[] = { "fr", "de-CH", "it" };
+    Locale desired[] = { "fr-CH", "de-CH", "it" };
+    {
+        LocaleMatcher noDemotion = LocaleMatcher::Builder().
+            setSupportedLocales(ARRAY_RANGE(supported)).
+            setDemotionPerDesiredLocale(ULOCMATCH_DEMOTION_NONE).build(errorCode);
+        Locale::RangeIterator<Locale *> desiredIter(ARRAY_RANGE(desired));
+        assertEquals("no demotion",
+                     "de_CH", locString(noDemotion.getBestMatch(desiredIter, errorCode)));
+    }
+
+    {
+        LocaleMatcher regionDemotion = LocaleMatcher::Builder().
+            setSupportedLocales(ARRAY_RANGE(supported)).
+            setDemotionPerDesiredLocale(ULOCMATCH_DEMOTION_REGION).build(errorCode);
+        Locale::RangeIterator<Locale *> desiredIter(ARRAY_RANGE(desired));
+        assertEquals("region demotion",
+                     "fr", locString(regionDemotion.getBestMatch(desiredIter, errorCode)));
+    }
 }
