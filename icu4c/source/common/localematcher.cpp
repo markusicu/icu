@@ -10,13 +10,18 @@
 #include <stdio.h>  // TODO
 
 #include "unicode/utypes.h"
+#include "unicode/localebuilder.h"
 #include "unicode/localematcher.h"
+#include "unicode/localpointer.h"
 #include "unicode/locid.h"
+#include "unicode/stringpiece.h"
 #include "unicode/uobject.h"
+#include "cmemory.h"
 #include "cstring.h"
 #include "loclikelysubtags.h"
 #include "locdistance.h"
 #include "lsr.h"
+#include "uarrsort.h"
 #include "uassert.h"
 #include "uhash.h"
 #include "ustr_imp.h"
@@ -51,6 +56,268 @@ typedef enum ULocMatchLifetime ULocMatchLifetime;
 #endif
 
 U_NAMESPACE_BEGIN
+
+namespace {
+
+int32_t hashLocale(const UHashTok token) {
+    const Locale *locale = static_cast<const Locale *>(token.pointer);
+    return locale->hashCode();
+}
+
+UBool compareLocales(const UHashTok t1, const UHashTok t2) {
+    const Locale *l1 = static_cast<const Locale *>(t1.pointer);
+    const Locale *l2 = static_cast<const Locale *>(t2.pointer);
+    return *l1 == *l2;
+}
+
+constexpr int32_t WEIGHT_ONE = 1000;
+
+struct LocaleAndWeight {
+    Locale *locale;
+    int32_t weight;  // 0..1000 = 0.0..1.0
+    int32_t index;  // force stable sort
+
+    int32_t compare(const LocaleAndWeight &other) const {
+        int32_t diff = other.weight - weight;  // descending: other-this
+        if (diff != 0) { return diff; }
+        return index - other.index;
+    }
+};
+
+int32_t U_CALLCONV
+compareLocaleAndWeight(const void * /*context*/, const void *left, const void *right) {
+    return ((const LocaleAndWeight *)left)->compare(*(const LocaleAndWeight *)right);
+}
+
+/**
+ * Parses a list of locales from an accept-language string.
+ * We are a bit more lenient than the spec:
+ * We accept extra whitespace in more places, empty range fields,
+ * and any number of qvalue fraction digits.
+ *
+ * https://tools.ietf.org/html/rfc2616#section-14.4
+ * 14.4 Accept-Language
+ *
+ *        Accept-Language = "Accept-Language" ":"
+ *                          1#( language-range [ ";" "q" "=" qvalue ] )
+ *        language-range  = ( ( 1*8ALPHA *( "-" 1*8ALPHA ) ) | "*" )
+ *
+ *    Each language-range MAY be given an associated quality value which
+ *    represents an estimate of the user's preference for the languages
+ *    specified by that range. The quality value defaults to "q=1". For
+ *    example,
+ *
+ *        Accept-Language: da, en-gb;q=0.8, en;q=0.7
+ *
+ * https://tools.ietf.org/html/rfc2616#section-3.9
+ * 3.9 Quality Values
+ *
+ *    HTTP content negotiation (section 12) uses short "floating point"
+ *    numbers to indicate the relative importance ("weight") of various
+ *    negotiable parameters.  A weight is normalized to a real number in
+ *    the range 0 through 1, where 0 is the minimum and 1 the maximum
+ *    value. If a parameter has a quality value of 0, then content with
+ *    this parameter is `not acceptable' for the client. HTTP/1.1
+ *    applications MUST NOT generate more than three digits after the
+ *    decimal point. User configuration of these values SHOULD also be
+ *    limited in this fashion.
+ *
+ *        qvalue         = ( "0" [ "." 0*3DIGIT ] )
+ *                       | ( "1" [ "." 0*3("0") ] )
+ */
+class LocalePriorityList {
+public:
+    LocalePriorityList(StringPiece s, UErrorCode &errorCode) {
+        if (U_FAILURE(errorCode)) { return; }
+        LocaleBuilder localeBuilder;
+        const char *p = s.data();
+        const char *limit = p + s.length();
+        while ((p = skipSpaces(p, limit)) != limit) {
+            if (*p == ',') {  // empty range field
+                ++p;
+                continue;
+            }
+            int32_t tagLength = findTagLength(p, limit);
+            if (tagLength == 0) {
+                errorCode = U_ILLEGAL_ARGUMENT_ERROR;
+                return;
+            }
+            Locale locale = localeBuilder.setLanguageTag(StringPiece(p, tagLength)).
+                                          build(errorCode);
+            if (U_FAILURE(errorCode)) { return; }
+            int32_t weight = WEIGHT_ONE;
+            if ((p = skipSpaces(p + tagLength, limit)) != limit && *p == ';') {
+                if ((p = skipSpaces(p + 1, limit)) == limit || *p != 'q' ||
+                        (p = skipSpaces(p + 1, limit)) == limit || *p != '=' ||
+                        (++p, (weight = parseWeight(p, limit)) < 0)) {
+                    errorCode = U_ILLEGAL_ARGUMENT_ERROR;
+                    return;
+                }
+                p = skipSpaces(p, limit);
+            }
+            if (p != limit && *p != ',') {  // trailing junk
+                errorCode = U_ILLEGAL_ARGUMENT_ERROR;
+                return;
+            }
+            add(locale, weight, errorCode);
+            if (p == limit) { break; }
+            ++p;
+        }
+        sort(errorCode);
+    }
+
+    ~LocalePriorityList() {
+        for (int32_t i = 0; i < listLength; ++i) {
+            delete list[i].locale;
+        }
+        uhash_close(map);
+    }
+
+    int32_t getLength() const { return listLength - numRemoved; }
+
+    int32_t getLengthIncludingRemoved() const { return listLength; }
+
+    const Locale *localeAt(int32_t i) const { return list[i].locale; }
+
+    Locale *orphanLocaleAt(int32_t i) {
+        LocaleAndWeight &lw = list[i];
+        Locale *l = lw.locale;
+        lw.locale = nullptr;
+        return l;
+    }
+
+private:
+    static const char *skipSpaces(const char *p, const char *limit) {
+        while (p < limit && *p == ' ') { ++p; }
+        return p;
+    }
+
+    static int32_t findTagLength(const char *p, const char *limit) {
+        // Look for accept-language delimiters.
+        // Leave other validation up to the LocaleBuilder.
+        const char *q;
+        for (q = p; q < limit; ++q) {
+            char c = *q;
+            if (c == ' ' || c == ',' || c == ';') { break; }
+        }
+        return static_cast<int32_t>(q - p);
+    }
+
+    /**
+     * Parses and returns a qvalue weight in millis.
+     * Advances p to after the parsed substring.
+     * Returns a negative value if parsing fails.
+     */
+    static int32_t parseWeight(const char *&p, const char *limit) {
+        p = skipSpaces(p, limit);
+        char c;
+        if (p == limit || ((c = *p) != '0' && c != '1')) { return -1; }
+        int32_t weight = (c - '0') * 1000;
+        if (++p == limit || *p != '.') { return weight; }
+        int32_t multiplier = 100;
+        while (++p != limit && '0' <= (c = *p) && c <= '9') {
+            c -= '0';
+            if (multiplier > 0) {
+                weight += c * multiplier;
+                multiplier /= 10;
+            } else if (multiplier == 0) {
+                // round up
+                if (c >= 5) { ++weight; }
+                multiplier = -1;
+            }  // else ignore further fraction digits
+        }
+        return weight <= WEIGHT_ONE ? weight : -1;  // bad if > 1.0
+    }
+
+    bool add(const Locale &locale, int32_t weight, UErrorCode &errorCode) {
+        if (U_FAILURE(errorCode)) { return false; }
+        if (map == nullptr) {
+            if (weight <= 0) { return true; }  // do not add q=0
+            map = uhash_open(hashLocale, compareLocales, uhash_compareLong, &errorCode);
+            if (U_FAILURE(errorCode)) { return false; }
+        }
+        LocalPointer<Locale> clone;
+        int32_t index = uhash_geti(map, &locale);
+        if (index != 0) {
+            // Duplicate: Remove the old item and append it anew.
+            LocaleAndWeight &lw = list[index - 1];
+            clone.adoptInstead(lw.locale);
+            lw.locale = nullptr;
+            lw.weight = 0;
+            ++numRemoved;
+        }
+        if (weight <= 0) {  // do not add q=0
+            if (index != 0) {
+                // Not strictly necessary but cleaner.
+                uhash_removei(map, &locale);
+            }
+            return true;
+        }
+        if (clone.isNull()) {
+            clone.adoptInstead(locale.clone());
+            if (clone.isNull() || (clone->isBogus() && !locale.isBogus())) {
+                errorCode = U_MEMORY_ALLOCATION_ERROR;
+                return false;
+            }
+        }
+        if (listLength == list.getCapacity()) {
+            int32_t newCapacity = listLength < 50 ? 100 : 4 * listLength;
+            if (list.resize(newCapacity, listLength) == nullptr) {
+                errorCode = U_MEMORY_ALLOCATION_ERROR;
+                return false;
+            }
+        }
+        uhash_puti(map, clone.getAlias(), listLength + 1, &errorCode);
+        if (U_FAILURE(errorCode)) { return false; }
+        LocaleAndWeight &lw = list[listLength];
+        lw.locale = clone.orphan();
+        lw.weight = weight;
+        lw.index = listLength++;
+        if (weight < WEIGHT_ONE) { hasWeights = true; }
+        U_ASSERT(uhash_count(map) == getLength());
+        return true;
+    }
+
+    void sort(UErrorCode &errorCode) {
+        // Sort by descending weights if there is a mix of weights.
+        // The comparator forces a stable sort via the item index.
+        if (U_FAILURE(errorCode) || listLength == numRemoved || !hasWeights) { return; }
+        uprv_sortArray(list.getAlias(), listLength, sizeof(LocaleAndWeight),
+                       compareLocaleAndWeight, nullptr, FALSE, &errorCode);
+    }
+
+    MaybeStackArray<LocaleAndWeight, 2> list;
+    int32_t listLength = 0;
+    int32_t numRemoved = 0;
+    bool hasWeights = false;  // other than 1.0
+    UHashtable *map = nullptr;
+};
+
+class LocalePriorityListIterator : public Locale::Iterator {
+public:
+    LocalePriorityListIterator(const LocalePriorityList &list) :
+            list(list), length(list.getLength()) {}
+
+    UBool hasNext() const override { return count < length; }
+
+    const Locale &next() override {
+        for(;;) {
+            const Locale *locale = list.localeAt(index++);
+            if (locale != nullptr) {
+                ++count;
+                return *locale;
+            }
+        }
+    }
+
+private:
+    const LocalePriorityList &list;
+    int32_t index = 0;
+    int32_t count = 0;
+    int32_t length;
+};
+
+}  // namespace
 
 LocaleMatcher::Result::Result(LocaleMatcher::Result &&src) U_NOEXCEPT :
         desiredLocale(src.desiredLocale),
@@ -167,15 +434,24 @@ bool LocaleMatcher::Builder::ensureSupportedLocaleVector() {
     return true;
 }
 
-#if 0
 LocaleMatcher::Builder &LocaleMatcher::Builder::setSupportedLocalesFromListString(
         StringPiece locales) {
+    LocalePriorityList list(locales, errorCode_);
     if (U_FAILURE(errorCode_)) { return *this; }
     clearSupportedLocales();
     if (!ensureSupportedLocaleVector()) { return *this; }
-    return setSupportedULocales(LocalePriorityList.add(locales).build().getULocales());
+    int32_t length = list.getLengthIncludingRemoved();
+    for (int32_t i = 0; i < length; ++i) {
+        Locale *locale = list.orphanLocaleAt(i);
+        if (locale == nullptr) { continue; }
+        supportedLocales_->addElement(locale, errorCode_);
+        if (U_FAILURE(errorCode_)) {
+            delete locale;
+            break;
+        }
+    }
+    return *this;
 }
-#endif
 
 LocaleMatcher::Builder &LocaleMatcher::Builder::setSupportedLocales(Locale::Iterator &locales) {
     if (U_FAILURE(errorCode_)) { return *this; }
@@ -611,13 +887,12 @@ const Locale *LocaleMatcher::getBestMatch(Locale::Iterator &desiredLocales,
     return U_SUCCESS(errorCode) && suppIndex >= 0 ? supportedLocales[suppIndex] : defaultLocale;
 }
 
-#if 0
 const Locale *LocaleMatcher::getBestMatchForListString(
         StringPiece desiredLocaleList, UErrorCode &errorCode) const {
-    if (U_FAILURE(errorCode)) { return nullptr; }
-    return getBestMatch(LocalePriorityList.add(desiredLocaleList).build());
+    LocalePriorityList list(desiredLocaleList, errorCode);
+    LocalePriorityListIterator iter(list);
+    return getBestMatch(iter, errorCode);
 }
-#endif
 
 LocaleMatcher::Result LocaleMatcher::getBestMatchResult(
         const Locale &desiredLocale, UErrorCode &errorCode) const {

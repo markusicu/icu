@@ -787,7 +787,7 @@ public final class LocaleMatcher {
      * Parses the string like {@link LocalePriorityList} does and
      * returns the supported locale which best matches one of the desired locales.
      *
-     * @param desiredLocaleList Typically a user's languages, in order of preference (descending),
+     * @param desiredLocaleList Typically a user's languages,
      *          as a string which is to be parsed like LocalePriorityList does.
      * @return the best-matching supported locale.
      * @stable ICU 4.4

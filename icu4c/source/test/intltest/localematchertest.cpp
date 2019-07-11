@@ -138,6 +138,20 @@ void LocaleMatcherTest::testBasics() {
         best = matcher.getBestMatch("ja_JP", errorCode);
         assertEquals("added.getBestMatch(ja_JP)", "fr", locString(best));
     }
+    {
+        LocaleMatcher matcher = LocaleMatcher::Builder().
+            setSupportedLocalesFromListString(
+                " el, fr;q=0.555555, en-GB ; q = 0.88  , el; q =0, en;q=0.88 , fr ").
+            build(errorCode);
+        const Locale *best = matcher.getBestMatchForListString("el, fr, fr;q=0, en-GB", errorCode);
+        assertEquals("added.getBestMatch(en_GB)", "en_GB", locString(best));
+        best = matcher.getBestMatch("en_US", errorCode);
+        assertEquals("added.getBestMatch(en_US)", "en", locString(best));
+        best = matcher.getBestMatch("fr_FR", errorCode);
+        assertEquals("added.getBestMatch(fr_FR)", "fr", locString(best));
+        best = matcher.getBestMatch("ja_JP", errorCode);
+        assertEquals("added.getBestMatch(ja_JP)", "fr", locString(best));
+    }
 }
 
 void LocaleMatcherTest::testSupportedDefault() {

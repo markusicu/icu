@@ -287,11 +287,13 @@ public:
         Builder &operator=(Builder &&src) U_NOEXCEPT;
 
         /**
-         * Parses the string like {@link LocalePriorityList} does and
-         * sets the supported locales accordingly.
+         * Parses an Accept-Language string
+         * (<a href="https://tools.ietf.org/html/rfc2616#section-14.4">RFC 2616 Section 14.4</a>),
+         * such as "af, en, fr;q=0.9", and sets the supported locales accordingly.
+         * Allows whitespace in more places but does not allow "*".
          * Clears any previously set/added supported locales first.
          *
-         * @param locales the string of locales to set, to be parsed like LocalePriorityList does
+         * @param locales the Accept-Language string of locales to set
          * @return this Builder object
          * @draft ICU 65
          */
@@ -487,11 +489,13 @@ public:
     const Locale *getBestMatch(Locale::Iterator &desiredLocales, UErrorCode &errorCode) const;
 
     /**
-     * Parses the string like {@link LocalePriorityList} does and
-     * returns the supported locale which best matches one of the desired locales.
+     * Parses an Accept-Language string
+     * (<a href="https://tools.ietf.org/html/rfc2616#section-14.4">RFC 2616 Section 14.4</a>),
+     * such as "af, en, fr;q=0.9",
+     * and returns the supported locale which best matches one of the desired locales.
+     * Allows whitespace in more places but does not allow "*".
      *
-     * @param desiredLocaleList Typically a user's languages, in order of preference (descending),
-     *          as a string which is to be parsed like LocalePriorityList does.
+     * @param desiredLocaleList Typically a user's languages, as an Accept-Language string.
      * @param errorCode ICU error code. Its input value must pass the U_SUCCESS() test,
      *                  or else the function returns immediately. Check for U_FAILURE()
      *                  on output or use with function chaining. (See User Guide for details.)

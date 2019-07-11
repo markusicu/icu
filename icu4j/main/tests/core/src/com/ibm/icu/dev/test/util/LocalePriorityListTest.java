@@ -53,7 +53,26 @@ public class LocalePriorityListTest extends TestFmwk {
     assertEquals("af, en, fr;q=0.9", list5.toString());
   }
 
-private void assertEquals(Object expected, Object string) {
+  @Test
+  public void testQValue() {
+    try {
+      LocalePriorityList.add("de;q=-0.1");
+      errln("negative accept-language qvalue should fail");
+    } catch(IllegalArgumentException expected) {
+      // good
+    }
+    try {
+      LocalePriorityList.add("de;q=1.001");
+      errln("accept-language qvalue > 1 should fail");
+    } catch(IllegalArgumentException expected) {
+      // good
+    }
+    LocalePriorityList list = LocalePriorityList.add("de;q=0.555555555").build(true);
+    double weight = list.getWeight(ULocale.GERMAN);
+    assertTrue("many decimals", 0.555 <= weight && weight <= 0.556);
+  }
+
+  private void assertEquals(Object expected, Object string) {
     assertEquals("", expected, string);
-}
+  }
 }

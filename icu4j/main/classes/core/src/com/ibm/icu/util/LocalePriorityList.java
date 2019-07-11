@@ -13,7 +13,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -24,10 +25,10 @@ import java.util.regex.Pattern;
 /**
  * Provides an immutable list of languages/locales in priority order.
  * The string format is based on the Accept-Language format
- * <a href="http://www.ietf.org/rfc/rfc2616.txt">http://www.ietf.org/rfc/rfc2616.txt</a>, such as
+ * (<a href="https://tools.ietf.org/html/rfc2616#section-14.4">RFC 2616 Section 14.4</a>), such as
  * "af, en, fr;q=0.9". Syntactically it is slightly
  * more lenient, in allowing extra whitespace between elements, extra commas,
- * and more than 3 decimals (on input), and pins between 0 and 1.
+ * and more than 3 decimals (on input). The qvalues must be between 0 and 1.
  *
  * <p>In theory, Accept-Language indicates the relative 'quality' of each item,
  * but in practice, all of the browsers just take an ordered list, like
@@ -70,7 +71,6 @@ import java.util.regex.Pattern;
  * @stable ICU 4.4
  */
 public class LocalePriorityList implements Iterable<ULocale> {
-    private static final double D0 = 0.0d;
     private static final Double D1 = 1.0d;
 
     private static final Pattern languageSplitter = Pattern.compile("\\s*,\\s*");
@@ -91,6 +91,8 @@ public class LocalePriorityList implements Iterable<ULocale> {
 
     /**
      * Creates a Builder and adds a locale with a specified weight.
+     * A zero or negative weight leads to removing the locale.
+     * A weight greater than 1 is pinned to 1.
      *
      * @param locale locale/language to be added
      * @param weight value from 0.0 to 1.0
@@ -154,13 +156,14 @@ public class LocalePriorityList implements Iterable<ULocale> {
     @Override
     public String toString() {
         final StringBuilder result = new StringBuilder();
-        for (final ULocale language : languagesAndWeights.keySet()) {
+        for (Entry<ULocale, Double> entry : languagesAndWeights.entrySet()) {
+            ULocale language = entry.getKey();
+            double weight = entry.getValue();
             if (result.length() != 0) {
                 result.append(", ");
             }
             result.append(language);
-            double weight = languagesAndWeights.get(language);
-            if (weight != D1) {
+            if (weight != 1.0) {
                 result.append(";q=").append(weight);
             }
         }
@@ -221,8 +224,8 @@ public class LocalePriorityList implements Iterable<ULocale> {
          * These store the input languages and weights, in chronological order,
          * where later additions override previous ones.
          */
-        private final Map<ULocale, Double> languageToWeight
-        = new LinkedHashMap<>();
+        private final Map<ULocale, Double> languageToWeight = new LinkedHashMap<>();
+        private boolean hasWeights = false;  // other than 1.0
 
         /*
          * Private constructor, only used by LocalePriorityList
@@ -249,25 +252,33 @@ public class LocalePriorityList implements Iterable<ULocale> {
          * @stable ICU 4.4
          */
         public LocalePriorityList build(boolean preserveWeights) {
-            // Walk through the input list, collecting the items with the same weights.
-            final Map<Double, Set<ULocale>> doubleCheck = new TreeMap<>(
-                    myDescendingDouble);
-            for (final ULocale lang : languageToWeight.keySet()) {
-                Double weight = languageToWeight.get(lang);
-                Set<ULocale> s = doubleCheck.get(weight);
-                if (s == null) {
-                    doubleCheck.put(weight, s = new LinkedHashSet<>());
+            Map<ULocale, Double> temp;
+            if (hasWeights) {
+                // Walk through the input list, collecting the items with the same weights.
+                final Map<Double, List<ULocale>> weightToLanguages =
+                        new TreeMap<>(myDescendingDouble);
+                for (Entry<ULocale, Double> entry : languageToWeight.entrySet()) {
+                    ULocale lang = entry.getKey();
+                    Double weight = entry.getValue();
+                    List<ULocale> s = weightToLanguages.get(weight);
+                    if (s == null) {
+                        weightToLanguages.put(weight, s = new LinkedList<>());
+                    }
+                    s.add(lang);
                 }
-                s.add(lang);
-            }
-            // We now have a bunch of items sorted by weight, then chronologically.
-            // We can now create a list in the right order
-            final Map<ULocale, Double> temp = new LinkedHashMap<>();
-            for (Entry<Double, Set<ULocale>> langEntry : doubleCheck.entrySet()) {
-                final Double weight = langEntry.getKey();
-                for (final ULocale lang : langEntry.getValue()) {
-                    temp.put(lang, preserveWeights ? weight : D1);
+                // We now have a bunch of items sorted by weight, then chronologically.
+                // We can now create a list in the right order.
+                temp = new LinkedHashMap<>();
+                for (Entry<Double, List<ULocale>> langEntry : weightToLanguages.entrySet()) {
+                    final Double weight = preserveWeights ? langEntry.getKey() : D1;
+                    for (final ULocale lang : langEntry.getValue()) {
+                        temp.put(lang, weight);
+                    }
                 }
+            } else {
+                // Nothing to sort. Simply copy the map so that
+                // modifying the builder further will not change the returned list.
+                temp = new LinkedHashMap<>(languageToWeight);
             }
             return new LocalePriorityList(Collections.unmodifiableMap(temp));
         }
@@ -280,9 +291,8 @@ public class LocalePriorityList implements Iterable<ULocale> {
          * @stable ICU 4.4
          */
         public Builder add(final LocalePriorityList list) {
-            for (final ULocale language : list.languagesAndWeights
-                    .keySet()) {
-                add(language, list.languagesAndWeights.get(language));
+            for (Entry<ULocale, Double> entry : list.languagesAndWeights.entrySet()) {
+                add(entry.getKey(), entry.getValue());
             }
             return this;
         }
@@ -295,7 +305,7 @@ public class LocalePriorityList implements Iterable<ULocale> {
          * @stable ICU 4.4
          */
         public Builder add(final ULocale locale) {
-            return add(locale, D1);
+            return add(locale, 1.0);
         }
 
         /**
@@ -307,7 +317,7 @@ public class LocalePriorityList implements Iterable<ULocale> {
          */
         public Builder add(ULocale... locales) {
             for (final ULocale languageCode : locales) {
-                add(languageCode, D1);
+                add(languageCode, 1.0);
             }
             return this;
         }
@@ -315,7 +325,8 @@ public class LocalePriorityList implements Iterable<ULocale> {
         /**
          * Adds a locale with a specified weight.
          * Overrides any previous weight for the locale.
-         * Removes a locale if the weight is zero.
+         * A zero or negative weight leads to removing the locale.
+         * A weight greater than 1 is pinned to 1.
          *
          * @param locale language/locale to add
          * @param weight value between 0.0 and 1.1
@@ -326,10 +337,12 @@ public class LocalePriorityList implements Iterable<ULocale> {
             if (languageToWeight.containsKey(locale)) {
                 languageToWeight.remove(locale);
             }
-            if (weight <= D0) {
+            if (weight <= 0.0) {
                 return this; // skip zeros
-            } else if (weight > D1) {
-                weight = D1;
+            } else if (weight > 1.0) {
+                weight = 1.0;
+            } else {
+                hasWeights = true;
             }
             languageToWeight.put(locale, weight);
             return this;
@@ -349,9 +362,9 @@ public class LocalePriorityList implements Iterable<ULocale> {
                 if (itemMatcher.reset(item).matches()) {
                     final ULocale language = new ULocale(itemMatcher.group(1));
                     final double weight = Double.parseDouble(itemMatcher.group(2));
-                    if (!(weight >= D0 && weight <= D1)) { // do ! for NaN
-                        throw new IllegalArgumentException("Illegal weight, must be 0..1: "
-                                + weight);
+                    if (!(0.0 <= weight && weight <= 1.0)) { // do ! for NaN
+                        throw new IllegalArgumentException(
+                                "Illegal weight, must be 0..1: " + weight);
                     }
                     add(language, weight);
                 } else if (item.length() != 0) {
