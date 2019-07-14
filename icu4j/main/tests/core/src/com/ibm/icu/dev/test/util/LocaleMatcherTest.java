@@ -253,12 +253,12 @@ public class LocaleMatcherTest extends TestFmwk {
     @Test
     public void testMatch_none() {
         double match = match(new ULocale("ar_MK"), ENGLISH_CANADA);
-        assertTrue("Actual < 0: " + match, 0 <= match);
-        assertTrue("Actual > 0.15 (~ language + script distance): " + match, 0.2 > match);
+        assertTrue("Actual >= 0: " + match, 0 <= match);
+        assertTrue("Actual < 0.2 (~ language + script distance): " + match, 0.2 > match);
     }
 
     @Test
-    public void testMatch_matchOnMazimized() {
+    public void testMatch_matchOnMaximized() {
         ULocale undTw = new ULocale("und_TW");
         ULocale zhHant = new ULocale("zh_Hant");
         double matchZh = match(undTw, new ULocale("zh"));
@@ -273,6 +273,20 @@ public class LocaleMatcherTest extends TestFmwk {
         assertTrue("zh should be closer to und_TW (" + matchZh +
             ") than to en_Hant_TW (" + matchEnHantTw + ")",
             matchEnHantTw < matchZh);
+    }
+
+    @Test
+    public void testResolvedLocale() {
+        LocaleMatcher matcher = LocaleMatcher.builder().
+            addSupportedULocale(new ULocale("ar-EG")).
+            build();
+        ULocale desired = new ULocale("ar-SA-u-nu-latn");
+        LocaleMatcher.Result result = matcher.getBestMatchResult(desired);
+        assertEquals("best", "ar_EG", result.getSupportedLocale().toString());
+        ULocale resolved = result.makeResolvedULocale();
+        assertEquals("ar-EG + ar-SA-u-nu-latn = ar-SA-u-nu-latn",
+                     "ar-SA-u-nu-latn",
+                     resolved.toLanguageTag());
     }
 
     @Test

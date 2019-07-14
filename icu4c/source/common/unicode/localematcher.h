@@ -220,13 +220,14 @@ public:
          * best-matching desired locale, such as the -t- and -u- extensions.
          * May replace some fields of the supported locale.
          * The result is the locale that should be used for date and number formatting, collation, etc.
+         * Returns the root locale if getSupportedLocale() returns nullptr.
          *
-         * <p>Example: desired=ar-SA-u-nu-latn, supported=ar-EG, resolved locale=ar-EG-u-nu-latn
+         * <p>Example: desired=ar-SA-u-nu-latn, supported=ar-EG, resolved locale=ar-SA-u-nu-latn
          *
          * @return a locale combining the best-matching desired and supported locales.
          * @draft ICU 65
          */
-        Locale makeResolvedLocale() const;
+        Locale makeResolvedLocale(UErrorCode &errorCode) const;
 
     private:
         Result(const Locale *desired, const Locale *supported,
@@ -532,6 +533,7 @@ public:
      */
     Result getBestMatchResult(Locale::Iterator &desiredLocales, UErrorCode &errorCode) const;
 
+#ifndef U_HIDE_INTERNAL_API
     /**
      * Returns a fraction between 0 and 1, where 1 means that the languages are a
      * perfect match, and 0 means that they are completely different.
@@ -551,6 +553,7 @@ public:
      * @internal (has a known user)
      */
     double internalMatch(const Locale &desired, const Locale &supported, UErrorCode &errorCode) const;
+#endif  // U_HIDE_INTERNAL_API
 
 private:
     LocaleMatcher(const Builder &builder, UErrorCode &errorCode);

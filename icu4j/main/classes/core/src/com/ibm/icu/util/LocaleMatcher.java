@@ -254,8 +254,9 @@ public final class LocaleMatcher {
          * best-matching desired locale, such as the -t- and -u- extensions.
          * May replace some fields of the supported locale.
          * The result is the locale that should be used for date and number formatting, collation, etc.
+         * Returns null if getSupportedLocale() returns null.
          *
-         * <p>Example: desired=ar-SA-u-nu-latn, supported=ar-EG, resolved locale=ar-EG-u-nu-latn
+         * <p>Example: desired=ar-SA-u-nu-latn, supported=ar-EG, resolved locale=ar-SA-u-nu-latn
          *
          * @return a locale combining the best-matching desired and supported locales.
          * @draft ICU 65
@@ -263,34 +264,34 @@ public final class LocaleMatcher {
          */
         public ULocale makeResolvedULocale() {
             ULocale bestDesired = getDesiredULocale();
-            ULocale serviceLocale = supportedULocale;
-            if (!serviceLocale.equals(bestDesired) && bestDesired != null) {
-                ULocale.Builder b = new ULocale.Builder().setLocale(serviceLocale);
-
-                // Copy the region from bestDesired, if there is one.
-                String region = bestDesired.getCountry();
-                if (!region.isEmpty()) {
-                    b.setRegion(region);
-                }
-
-                // Copy the variants from bestDesired, if there are any.
-                // Note that this will override any serviceLocale variants.
-                // For example, "sco-ulster-fonipa" + "...-fonupa" => "sco-fonupa" (replacing ulster).
-                String variants = bestDesired.getVariant();
-                if (!variants.isEmpty()) {
-                    b.setVariant(variants);
-                }
-
-                // Copy the extensions from bestDesired, if there are any.
-                // Note that this will override any serviceLocale extensions.
-                // For example, "th-u-nu-latn-ca-buddhist" + "...-u-nu-native" => "th-u-nu-native"
-                // (replacing calendar).
-                for (char extensionKey : bestDesired.getExtensionKeys()) {
-                    b.setExtension(extensionKey, bestDesired.getExtension(extensionKey));
-                }
-                serviceLocale = b.build();
+            if (supportedULocale == null || bestDesired == null ||
+                    supportedULocale.equals(bestDesired)) {
+                return supportedULocale;
             }
-            return serviceLocale;
+            ULocale.Builder b = new ULocale.Builder().setLocale(supportedULocale);
+
+            // Copy the region from bestDesired, if there is one.
+            String region = bestDesired.getCountry();
+            if (!region.isEmpty()) {
+                b.setRegion(region);
+            }
+
+            // Copy the variants from bestDesired, if there are any.
+            // Note that this will override any supportedULocale variants.
+            // For example, "sco-ulster-fonipa" + "...-fonupa" => "sco-fonupa" (replacing ulster).
+            String variants = bestDesired.getVariant();
+            if (!variants.isEmpty()) {
+                b.setVariant(variants);
+            }
+
+            // Copy the extensions from bestDesired, if there are any.
+            // Note that this will override any supportedULocale extensions.
+            // For example, "th-u-nu-latn-ca-buddhist" + "...-u-nu-native" => "th-u-nu-native"
+            // (replacing calendar).
+            for (char extensionKey : bestDesired.getExtensionKeys()) {
+                b.setExtension(extensionKey, bestDesired.getExtension(extensionKey));
+            }
+            return b.build();
         }
 
         /**
@@ -299,15 +300,17 @@ public final class LocaleMatcher {
          * May replace some fields of the supported locale.
          * The result is the locale that should be used for
          * date and number formatting, collation, etc.
+         * Returns null if getSupportedLocale() returns null.
          *
-         * <p>Example: desired=ar-SA-u-nu-latn, supported=ar-EG, resolved locale=ar-EG-u-nu-latn
+         * <p>Example: desired=ar-SA-u-nu-latn, supported=ar-EG, resolved locale=ar-SA-u-nu-latn
          *
          * @return a locale combining the best-matching desired and supported locales.
          * @draft ICU 65
          * @provisional This API might change or be removed in a future release.
          */
         public Locale makeResolvedLocale() {
-            return makeResolvedULocale().toLocale();
+            ULocale resolved = makeResolvedULocale();
+            return resolved != null ? resolved.toLocale() : null;
         }
     }
 
@@ -994,8 +997,8 @@ public final class LocaleMatcher {
     public double match(ULocale desired, ULocale desiredMax, ULocale supported, ULocale supportedMax) {
         // Returns the inverse of the distance: That is, 1-distance(desired, supported).
         int distance = LocaleDistance.INSTANCE.getBestIndexAndDistance(
-                XLikelySubtags.INSTANCE.makeMaximizedLsrFrom(desired),
-                new LSR[] { XLikelySubtags.INSTANCE.makeMaximizedLsrFrom(supported) },
+                getMaximalLsrOrUnd(desired),
+                new LSR[] { getMaximalLsrOrUnd(supported) },
                 thresholdDistance, favorSubtag) & 0xff;
         return (100 - distance) / 100.0;
     }

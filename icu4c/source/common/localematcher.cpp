@@ -353,39 +353,40 @@ LocaleMatcher::Result &LocaleMatcher::Result::operator=(LocaleMatcher::Result &&
     return *this;
 }
 
-#if 0
-Locale LocaleMatcher::Result::makeResolvedLocale() {
-    ULocale bestDesired = getDesiredULocale();
-    ULocale serviceLocale = supportedULocale;
-    if (!serviceLocale.equals(bestDesired) && bestDesired != null) {
-        ULocale.Builder b = new ULocale.Builder().setLocale(serviceLocale);
-
-        // Copy the region from bestDesired, if there is one.
-        String region = bestDesired.getCountry();
-        if (!region.isEmpty()) {
-            b.setRegion(region);
-        }
-
-        // Copy the variants from bestDesired, if there are any.
-        // Note that this will override any serviceLocale variants.
-        // For example, "sco-ulster-fonipa" + "...-fonupa" => "sco-fonupa" (replacing ulster).
-        String variants = bestDesired.getVariant();
-        if (!variants.isEmpty()) {
-            b.setVariant(variants);
-        }
-
-        // Copy the extensions from bestDesired, if there are any.
-        // Note that this will override any serviceLocale extensions.
-        // For example, "th-u-nu-latn-ca-buddhist" + "...-u-nu-native" => "th-u-nu-native"
-        // (replacing calendar).
-        for (char extensionKey : bestDesired.getExtensionKeys()) {
-            b.setExtension(extensionKey, bestDesired.getExtension(extensionKey));
-        }
-        serviceLocale = b.build();
+Locale LocaleMatcher::Result::makeResolvedLocale(UErrorCode &errorCode) const {
+    if (U_FAILURE(errorCode) || supportedLocale == nullptr) {
+        return Locale::getRoot();
     }
-    return serviceLocale;
+    const Locale *bestDesired = getDesiredLocale();
+    if (bestDesired == nullptr || *supportedLocale == *bestDesired) {
+        return *supportedLocale;
+    }
+    LocaleBuilder b;
+    b.setLocale(*supportedLocale);
+
+    // Copy the region from bestDesired, if there is one.
+    const char *region = bestDesired->getCountry();
+    if (*region != 0) {
+        b.setRegion(region);
+    }
+
+    // Copy the variants from bestDesired, if there are any.
+    // Note that this will override any supportedLocale variants.
+    // For example, "sco-ulster-fonipa" + "...-fonupa" => "sco-fonupa" (replacing ulster).
+    const char *variants = bestDesired->getVariant();
+    if (*variants != 0) {
+        b.setVariant(variants);
+    }
+
+    // Copy the extensions from bestDesired, if there are any.
+    // C++ note: The following note, copied from Java, may not be true,
+    // as long as C++ copies by legacy ICU keyword, not by extension singleton.
+    // Note that this will override any supportedLocale extensions.
+    // For example, "th-u-nu-latn-ca-buddhist" + "...-u-nu-native" => "th-u-nu-native"
+    // (replacing calendar).
+    b.copyExtensionsFrom(*bestDesired, errorCode);
+    return b.build(errorCode);
 }
-#endif
 
 LocaleMatcher::Builder::Builder(LocaleMatcher::Builder &&src) U_NOEXCEPT :
         errorCode_(src.errorCode_),
@@ -967,16 +968,19 @@ int32_t LocaleMatcher::getBestSuppIndex(LSR desiredLSR, LocaleLsrIterator *remai
     }
     return supportedIndexes[bestSupportedLsrIndex];
 }
-#if 0
-double LocaleMatcher::internalMatch(const Locale &desired, const Locale &supported, UErrorCode &errorCode) {
+
+double LocaleMatcher::internalMatch(const Locale &desired, const Locale &supported, UErrorCode &errorCode) const {
     // Returns the inverse of the distance: That is, 1-distance(desired, supported).
+    LSR suppLSR = getMaximalLsrOrUnd(likelySubtags, supported, errorCode);
+    if (U_FAILURE(errorCode)) { return 0; }
+    const LSR *pSuppLSR = &suppLSR;
     int32_t distance = localeDistance.getBestIndexAndDistance(
-            likelySubtags.makeMaximizedLsrFrom(desired),
-            new LSR[] { likelySubtags.makeMaximizedLsrFrom(supported) },
+            getMaximalLsrOrUnd(likelySubtags, desired, errorCode),
+            &pSuppLSR, 1,
             thresholdDistance, favorSubtag) & 0xff;
     return (100 - distance) / 100.0;
 }
-#endif
+
 U_NAMESPACE_END
 
 #endif  // __LOCMATCHER_H__

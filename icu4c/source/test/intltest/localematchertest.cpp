@@ -5,6 +5,7 @@
 // created: 2019jul04 Markus W. Scherer
 
 #include <stdio.h>  // TODO
+#include <string>
 #include <vector>
 
 #include "unicode/utypes.h"
@@ -34,6 +35,8 @@ public:
     void testSupportedDefault();
     void testUnsupportedDefault();
     void testDemotion();
+    void testMatch();
+    void testResolvedLocale();
 };
 
 extern IntlTest *createLocaleMatcherTest() {
@@ -50,6 +53,8 @@ void LocaleMatcherTest::runIndexedTest(int32_t index, UBool exec, const char *&n
     TESTCASE_AUTO(testSupportedDefault);
     TESTCASE_AUTO(testUnsupportedDefault);
     TESTCASE_AUTO(testDemotion);
+    TESTCASE_AUTO(testMatch);
+    TESTCASE_AUTO(testResolvedLocale);
     TESTCASE_AUTO_END;
 }
 
@@ -222,4 +227,47 @@ void LocaleMatcherTest::testDemotion() {
         assertEquals("region demotion",
                      "fr", locString(regionDemotion.getBestMatch(desiredIter, errorCode)));
     }
+}
+
+void LocaleMatcherTest::testMatch() {
+    IcuTestErrorCode errorCode(*this, "testMatch");
+    LocaleMatcher matcher = LocaleMatcher::Builder().build(errorCode);
+
+    // Java test function testMatch_exact()
+    Locale en_CA("en_CA");
+    assertEquals("exact match", 1.0, matcher.internalMatch(en_CA, en_CA, errorCode));
+
+    // testMatch_none
+    Locale ar_MK("ar_MK");
+    double match = matcher.internalMatch(ar_MK, en_CA, errorCode);
+    assertTrue("mismatch: 0<=match<0.2", 0 <= match && match < 0.2);
+
+    // testMatch_matchOnMaximized
+    Locale und_TW("und_TW");
+    Locale zh("zh");
+    Locale zh_Hant("zh_Hant");
+    double matchZh = matcher.internalMatch(und_TW, zh, errorCode);
+    double matchZhHant = matcher.internalMatch(und_TW, zh_Hant, errorCode);
+    assertTrue("und_TW should be closer to zh_Hant than to zh",
+               matchZh < matchZhHant);
+    Locale en_Hant_TW("en_Hant_TW");
+    double matchEnHantTw = matcher.internalMatch(en_Hant_TW, zh_Hant, errorCode);
+    assertTrue("zh_Hant should be closer to und_TW than to en_Hant_TW",
+               matchEnHantTw < matchZhHant);
+    assertTrue("zh should be closer to und_TW than to en_Hant_TW",
+               matchEnHantTw < matchZh);
+}
+
+void LocaleMatcherTest::testResolvedLocale() {
+    IcuTestErrorCode errorCode(*this, "testResolvedLocale");
+    LocaleMatcher matcher = LocaleMatcher::Builder().
+        addSupportedLocale("ar-EG").
+        build(errorCode);
+    Locale desired("ar-SA-u-nu-latn");
+    LocaleMatcher::Result result = matcher.getBestMatchResult(desired, errorCode);
+    assertEquals("best", "ar_EG", locString(result.getSupportedLocale()));
+    Locale resolved = result.makeResolvedLocale(errorCode);
+    assertEquals("ar-EG + ar-SA-u-nu-latn = ar-SA-u-nu-latn",
+                 "ar-SA-u-nu-latn",
+                 resolved.toLanguageTag<std::string>(errorCode).data());
 }

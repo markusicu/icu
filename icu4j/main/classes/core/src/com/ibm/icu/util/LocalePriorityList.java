@@ -111,7 +111,7 @@ public class LocalePriorityList implements Iterable<ULocale> {
      * @stable ICU 4.4
      */
     public static Builder add(LocalePriorityList list) {
-        return new Builder().add(list);
+        return new Builder(list);
     }
 
     /**
@@ -224,13 +224,31 @@ public class LocalePriorityList implements Iterable<ULocale> {
          * These store the input languages and weights, in chronological order,
          * where later additions override previous ones.
          */
-        private final Map<ULocale, Double> languageToWeight = new LinkedHashMap<>();
+        private Map<ULocale, Double> languageToWeight;
+        /**
+         * The builder is reusable but rarely reused. Avoid cloning the map when not needed.
+         * Exactly one of languageToWeight and built is null.
+         */
+        private LocalePriorityList built;
         private boolean hasWeights = false;  // other than 1.0
 
-        /*
+        /**
          * Private constructor, only used by LocalePriorityList
          */
         private Builder() {
+            languageToWeight = new LinkedHashMap<>();
+        }
+
+        private Builder(LocalePriorityList list) {
+            built = list;
+            for (Double value : list.languagesAndWeights.values()) {
+                double weight = value;
+                assert 0.0 < weight && weight <= 1.0;
+                if (weight != 1.0) {
+                    hasWeights = true;
+                    break;
+                }
+            }
         }
 
         /**
@@ -252,10 +270,15 @@ public class LocalePriorityList implements Iterable<ULocale> {
          * @stable ICU 4.4
          */
         public LocalePriorityList build(boolean preserveWeights) {
+            if (built != null) {
+                // Calling build() again without changing anything in between.
+                // Just return the same immutable list.
+                return built;
+            }
             Map<ULocale, Double> temp;
             if (hasWeights) {
                 // Walk through the input list, collecting the items with the same weights.
-                final Map<Double, List<ULocale>> weightToLanguages =
+                final TreeMap<Double, List<ULocale>> weightToLanguages =
                         new TreeMap<>(myDescendingDouble);
                 for (Entry<ULocale, Double> entry : languageToWeight.entrySet()) {
                     ULocale lang = entry.getKey();
@@ -268,19 +291,27 @@ public class LocalePriorityList implements Iterable<ULocale> {
                 }
                 // We now have a bunch of items sorted by weight, then chronologically.
                 // We can now create a list in the right order.
-                temp = new LinkedHashMap<>();
-                for (Entry<Double, List<ULocale>> langEntry : weightToLanguages.entrySet()) {
-                    final Double weight = preserveWeights ? langEntry.getKey() : D1;
-                    for (final ULocale lang : langEntry.getValue()) {
-                        temp.put(lang, weight);
+                if (weightToLanguages.size() <= 1) {
+                    // There is at most one weight.
+                    temp = languageToWeight;
+                    if (weightToLanguages.isEmpty() || weightToLanguages.firstKey() == 1.0) {
+                        hasWeights = false;
+                    }
+                } else {
+                    temp = new LinkedHashMap<>();
+                    for (Entry<Double, List<ULocale>> langEntry : weightToLanguages.entrySet()) {
+                        final Double weight = preserveWeights ? langEntry.getKey() : D1;
+                        for (final ULocale lang : langEntry.getValue()) {
+                            temp.put(lang, weight);
+                        }
                     }
                 }
             } else {
-                // Nothing to sort. Simply copy the map so that
-                // modifying the builder further will not change the returned list.
-                temp = new LinkedHashMap<>(languageToWeight);
+                // Nothing to sort.
+                temp = languageToWeight;
             }
-            return new LocalePriorityList(Collections.unmodifiableMap(temp));
+            languageToWeight = null;
+            return built = new LocalePriorityList(Collections.unmodifiableMap(temp));
         }
 
         /**
@@ -334,17 +365,24 @@ public class LocalePriorityList implements Iterable<ULocale> {
          * @stable ICU 4.4
          */
         public Builder add(final ULocale locale, double weight) {
+            if (languageToWeight == null) {
+                // Builder reuse after build().
+                languageToWeight = new LinkedHashMap<>(built.languagesAndWeights);
+                built = null;
+            }
             if (languageToWeight.containsKey(locale)) {
                 languageToWeight.remove(locale);
             }
+            Double value;
             if (weight <= 0.0) {
                 return this; // skip zeros
-            } else if (weight > 1.0) {
-                weight = 1.0;
+            } else if (weight >= 1.0) {
+                value = D1;
             } else {
+                value = weight;
                 hasWeights = true;
             }
-            languageToWeight.put(locale, weight);
+            languageToWeight.put(locale, value);
             return this;
         }
 
