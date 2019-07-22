@@ -11,8 +11,11 @@
 #include "unicode/utypes.h"
 #include "unicode/localematcher.h"
 #include "unicode/locid.h"
+#include "charstr.h"
 #include "cmemory.h"
 #include "intltest.h"
+#include "localeprioritylist.h"
+#include "ucbuf.h"
 
 #define ARRAY_RANGE(array) (array), ((array) + UPRV_LENGTHOF(array))
 
@@ -21,6 +24,26 @@ namespace {
 const char *locString(const Locale *loc) {
     return loc != nullptr ? loc->getName() : "(null)";
 }
+
+struct TestCase {
+    int32_t lineNr = 0;
+
+    CharString supported;
+    CharString def;
+    UnicodeString favor;
+    UnicodeString threshold;
+    CharString desired;
+    CharString expMatch;
+    CharString expDesired;
+    CharString expCombined;
+
+    void reset() {
+        supported.clear();
+        def.clear();
+        favor.remove();
+        threshold.remove();
+    }
+};
 
 }  // namespace
 
@@ -37,6 +60,10 @@ public:
     void testDemotion();
     void testMatch();
     void testResolvedLocale();
+    void testDataDriven();
+
+private:
+    UBool dataDriven(const TestCase &test, IcuTestErrorCode &errorCode);
 };
 
 extern IntlTest *createLocaleMatcherTest() {
@@ -55,6 +82,7 @@ void LocaleMatcherTest::runIndexedTest(int32_t index, UBool exec, const char *&n
     TESTCASE_AUTO(testDemotion);
     TESTCASE_AUTO(testMatch);
     TESTCASE_AUTO(testResolvedLocale);
+    TESTCASE_AUTO(testDataDriven);
     TESTCASE_AUTO_END;
 }
 
@@ -270,4 +298,203 @@ void LocaleMatcherTest::testResolvedLocale() {
     assertEquals("ar-EG + ar-SA-u-nu-latn = ar-SA-u-nu-latn",
                  "ar-SA-u-nu-latn",
                  resolved.toLanguageTag<std::string>(errorCode).data());
+}
+
+namespace {
+
+bool toInvariant(const UnicodeString &s, CharString &inv, IcuTestErrorCode &errorCode) {
+    if (errorCode.isSuccess()) {
+        inv.clear().appendInvariantChars(s, errorCode);
+        return errorCode.isSuccess();
+    }
+    return false;
+}
+
+bool getSuffixAfterPrefix(const UnicodeString &s, int32_t limit,
+                          const UnicodeString &prefix, UnicodeString &suffix) {
+    if (prefix.length() <= limit && s.startsWith(prefix)) {
+        suffix.setTo(s, prefix.length(), limit - prefix.length());
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool getInvariantSuffixAfterPrefix(const UnicodeString &s, int32_t limit,
+                                   const UnicodeString &prefix, CharString &suffix,
+                                   IcuTestErrorCode &errorCode) {
+    UnicodeString u_suffix;
+    return getSuffixAfterPrefix(s, limit, prefix, u_suffix) &&
+        toInvariant(u_suffix, suffix, errorCode);
+}
+
+bool readTestCase(const UnicodeString &line, TestCase &test, IcuTestErrorCode &errorCode) {
+    if (errorCode.isFailure()) { return false; }
+    ++test.lineNr;
+    // Start of comment, or end of line, minus trailing spaces.
+    int32_t limit = line.indexOf(u'#');
+    if (limit < 0) {
+        limit = line.length();
+        // Remove trailing CR LF.
+        char16_t c;
+        while (limit > 0 && ((c = line.charAt(limit - 1)) == u'\n' || c == u'\r')) {
+            --limit;
+        }
+    }
+    // Remove spaces before comment or at the end of the line.
+    char16_t c;
+    while (limit > 0 && ((c = line.charAt(limit - 1)) == u' ' || c == u'\t')) {
+        --limit;
+    }
+    if (limit == 0) {  // empty line
+        return false;
+    }
+    if (line.startsWith(u"** test: ")) {
+        test.reset();
+    } else if (getInvariantSuffixAfterPrefix(line, limit, u"@supported=",
+                                             test.supported, errorCode)) {
+    } else if (getInvariantSuffixAfterPrefix(line, limit, u"@default=",
+                                             test.def, errorCode)) {
+    } else if (getSuffixAfterPrefix(line, limit, u"@favor=", test.favor)) {
+    } else if (getSuffixAfterPrefix(line, limit, u"@threshold=", test.threshold)) {
+    } else {
+        int32_t matchSep = line.indexOf(u">>");
+        // >> before an inline comment, and followed by more than white space.
+        if (0 <= matchSep && (matchSep + 2) < limit) {
+            toInvariant(line.tempSubStringBetween(0, matchSep).trim(), test.desired, errorCode);
+            test.expDesired.clear();
+            test.expCombined.clear();
+            int32_t start = matchSep + 2;
+            int32_t expLimit = line.indexOf(u'|', start);
+            if (expLimit < 0) {
+                toInvariant(line.tempSubStringBetween(start, limit).trim(),
+                            test.expMatch, errorCode);
+            } else {
+                toInvariant(line.tempSubStringBetween(start, expLimit).trim(),
+                            test.expMatch, errorCode);
+                start = expLimit + 1;
+                expLimit = line.indexOf(u'|', start);
+                if (expLimit < 0) {
+                    toInvariant(line.tempSubStringBetween(start, limit).trim(),
+                                test.expDesired, errorCode);
+                } else {
+                    toInvariant(line.tempSubStringBetween(start, expLimit).trim(),
+                                test.expDesired, errorCode);
+                    toInvariant(line.tempSubStringBetween(expLimit + 1, limit).trim(),
+                                test.expCombined, errorCode);
+                }
+            }
+            return errorCode.isSuccess();
+        } else {
+            errorCode.set(U_INVALID_FORMAT_ERROR);
+        }
+    }
+    return false;
+}
+
+Locale *getLocaleOrNull(const CharString &s, Locale &locale) {
+    if (s == "null") {
+        return nullptr;
+    } else {
+        return &(locale = Locale(s.data()));
+    }
+}
+
+}  // namespace
+
+UBool LocaleMatcherTest::dataDriven(const TestCase &test, IcuTestErrorCode &errorCode) {
+    LocaleMatcher::Builder builder;
+    builder.setSupportedLocalesFromListString(test.supported.toStringPiece());
+    if (!test.def.isEmpty()) {
+        Locale defaultLocale(test.def.data());
+        builder.setDefaultLocale(&defaultLocale);
+    }
+    if (!test.favor.isEmpty()) {
+        ULocMatchFavorSubtag favor;
+        if (test.favor == u"normal") {
+            favor = ULOCMATCH_FAVOR_LANGUAGE;
+        } else if (test.favor == u"script") {
+            favor = ULOCMATCH_FAVOR_SCRIPT;
+        } else {
+            errln(UnicodeString(u"unsupported FavorSubtag value ") + test.favor);
+            return FALSE;
+        }
+        builder.setFavorSubtag(favor);
+    }
+    if (!test.threshold.isEmpty()) {
+        infoln("skipping test case on line %d with non-default threshold: not exposed via API",
+               (int)test.lineNr);
+        return TRUE;
+        // int32_t threshold = Integer.valueOf(test.threshold);
+        // builder.internalSetThresholdDistance(threshold);
+    }
+    LocaleMatcher matcher = builder.build(errorCode);
+    if (errorCode.isFailure()) {
+        errln("LocaleMatcher::Builder::build() failed");
+        return FALSE;
+    }
+
+    Locale expMatchLocale("");
+    Locale *expMatch = getLocaleOrNull(test.expMatch, expMatchLocale);
+    if (test.expDesired.isEmpty() && test.expCombined.isEmpty()) {
+        const Locale *bestSupported = matcher.getBestMatchForListString(
+            test.desired.toStringPiece(), errorCode);
+        return assertEquals("bestSupported", locString(expMatch), locString(bestSupported));
+    } else {
+        LocalePriorityList desired(test.desired.toStringPiece(), errorCode);
+        LocalePriorityList::Iterator desiredIter = desired.iterator();
+        LocaleMatcher::Result result = matcher.getBestMatchResult(desiredIter, errorCode);
+        UBool ok = assertEquals("bestSupported",
+                                locString(expMatch), locString(result.getSupportedLocale()));
+        if (!test.expDesired.isEmpty()) {
+            Locale expDesiredLocale("");
+            Locale *expDesired = getLocaleOrNull(test.expDesired, expDesiredLocale);
+            ok &= assertEquals("bestDesired",
+                               locString(expDesired), locString(result.getDesiredLocale()));
+        }
+        if (!test.expCombined.isEmpty()) {
+            if (test.expMatch.contains("-u-")) {
+                infoln("ignoring makeResolvedLocale() line %d, see ICU-20727", (int)test.lineNr);
+                return TRUE;
+            }
+            Locale expCombinedLocale("");
+            Locale *expCombined = getLocaleOrNull(test.expCombined, expCombinedLocale);
+            Locale combined = result.makeResolvedLocale(errorCode);
+            ok &= assertEquals("combined", locString(expCombined), locString(&combined));
+        }
+        return ok;
+    }
+}
+
+void LocaleMatcherTest::testDataDriven() {
+    IcuTestErrorCode errorCode(*this, "testDataDriven");
+    CharString path(getSourceTestData(errorCode), errorCode);
+    path.appendPathPart("localeMatcherTest.txt", errorCode);
+    const char *codePage = "UTF-8";
+    LocalUCHARBUFPointer f(ucbuf_open(path.data(), &codePage, TRUE, FALSE, errorCode));
+    if(errorCode.errIfFailureAndReset("ucbuf_open(localeMatcherTest.txt)")) {
+        return;
+    }
+    int32_t lineLength;
+    const UChar *p;
+    UnicodeString line;
+    TestCase test;
+    while ((p = ucbuf_readline(f.getAlias(), &lineLength, errorCode)) != nullptr &&
+            errorCode.isSuccess()) {
+        line.setTo(FALSE, p, lineLength);
+        if (!readTestCase(line, test, errorCode)) {
+            if (errorCode.errIfFailureAndReset(
+                    "test data syntax error on line %d", (int)test.lineNr)) {
+                infoln(line);
+            }
+            continue;
+        }
+        UBool ok = dataDriven(test, errorCode);
+        if (errorCode.errIfFailureAndReset("test error on line %d", (int)test.lineNr)) {
+            infoln(line);
+        } else if (!ok) {
+            errln("test failure on line %d", (int)test.lineNr);
+            infoln(line);
+        }
+    }
 }

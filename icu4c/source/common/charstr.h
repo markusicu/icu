@@ -83,8 +83,17 @@ public:
     const char *data() const { return buffer.getAlias(); }
     char *data() { return buffer.getAlias(); }
 
+    bool operator==(StringPiece other) const {
+        return len==other.length() && uprv_memcmp(data(), other.data(), len) == 0;
+    }
+    bool operator!=(StringPiece other) const {
+        return !operator==(other);
+    }
+
     /** @return last index of c, or -1 if c is not in this string */
     int32_t lastIndexOf(char c) const;
+
+    bool contains(StringPiece s) const;
 
     CharString &clear() { len=0; buffer[0]=0; return *this; }
     CharString &truncate(int32_t newLength);

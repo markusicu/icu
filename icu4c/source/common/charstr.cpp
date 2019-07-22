@@ -52,6 +52,17 @@ int32_t CharString::lastIndexOf(char c) const {
     return -1;
 }
 
+bool CharString::contains(StringPiece s) const {
+    const char *p = buffer.getAlias();
+    int32_t lastStart = len - s.length();
+    for (int32_t i = 0; i <= lastStart; ++i) {
+        if (uprv_memcmp(p + i, s.data(), s.length()) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 CharString &CharString::truncate(int32_t newLength) {
     if(newLength<0) {
         newLength=0;
