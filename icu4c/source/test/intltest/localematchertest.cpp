@@ -437,8 +437,8 @@ UBool LocaleMatcherTest::dataDriven(const TestCase &test, IcuTestErrorCode &erro
     Locale expMatchLocale("");
     Locale *expMatch = getLocaleOrNull(test.expMatch, expMatchLocale);
     if (test.expDesired.isEmpty() && test.expCombined.isEmpty()) {
-        const Locale *bestSupported = matcher.getBestMatchForListString(
-            test.desired.toStringPiece(), errorCode);
+        StringPiece desiredSP = test.desired.toStringPiece();
+        const Locale *bestSupported = matcher.getBestMatchForListString(desiredSP, errorCode);
         return assertEquals("bestSupported", locString(expMatch), locString(bestSupported));
     } else {
         LocalePriorityList desired(test.desired.toStringPiece(), errorCode);
@@ -455,7 +455,7 @@ UBool LocaleMatcherTest::dataDriven(const TestCase &test, IcuTestErrorCode &erro
         if (!test.expCombined.isEmpty()) {
             if (test.expMatch.contains("-u-")) {
                 infoln("ignoring makeResolvedLocale() line %d, see ICU-20727", (int)test.lineNr);
-                return TRUE;
+                return ok;
             }
             Locale expCombinedLocale("");
             Locale *expCombined = getLocaleOrNull(test.expCombined, expCombinedLocale);
@@ -479,6 +479,7 @@ void LocaleMatcherTest::testDataDriven() {
     const UChar *p;
     UnicodeString line;
     TestCase test;
+    int32_t numPassed = 0;
     while ((p = ucbuf_readline(f.getAlias(), &lineLength, errorCode)) != nullptr &&
             errorCode.isSuccess()) {
         line.setTo(FALSE, p, lineLength);
@@ -495,6 +496,9 @@ void LocaleMatcherTest::testDataDriven() {
         } else if (!ok) {
             errln("test failure on line %d", (int)test.lineNr);
             infoln(line);
+        } else {
+            ++numPassed;
         }
     }
+    infoln("number of passing test cases: %d", (int)numPassed);
 }

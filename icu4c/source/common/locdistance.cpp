@@ -248,6 +248,7 @@ int32_t LocaleDistance::getRegionPartitionsDistance(
         return getFallbackRegionDistance(iter, startState);
     }
 
+    const char *supportedStart = supportedPartitions - 1;  // for restart of inner loop
     int32_t regionDistance = 0;
     // Fall back to * only once, not for each pair of partition strings.
     bool star = false;
@@ -290,6 +291,8 @@ int32_t LocaleDistance::getRegionPartitionsDistance(
         }
         if ((desired = *desiredPartitions++) != 0) {
             iter.resetToState64(startState);
+            supportedPartitions = supportedStart;
+            supported = *supportedPartitions++;
         } else {
             break;
         }
