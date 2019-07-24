@@ -53,6 +53,7 @@ int32_t CharString::lastIndexOf(char c) const {
 }
 
 bool CharString::contains(StringPiece s) const {
+    if (s.empty()) { return false; }
     const char *p = buffer.getAlias();
     int32_t lastStart = len - s.length();
     for (int32_t i = 0; i <= lastStart; ++i) {
