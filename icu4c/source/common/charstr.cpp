@@ -35,6 +35,17 @@ CharString& CharString::operator=(CharString&& src) U_NOEXCEPT {
     return *this;
 }
 
+char *CharString::cloneData(UErrorCode &errorCode) const {
+    if (U_FAILURE(errorCode)) { return nullptr; }
+    char *p = static_cast<char *>(uprv_malloc(len + 1));
+    if (p == nullptr) {
+        errorCode = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
+    }
+    uprv_memcpy(p, buffer.getAlias(), len + 1);
+    return p;
+}
+
 CharString &CharString::copyFrom(const CharString &s, UErrorCode &errorCode) {
     if(U_SUCCESS(errorCode) && this!=&s && ensureCapacity(s.len+1, 0, errorCode)) {
         len=s.len;

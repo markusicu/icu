@@ -22,7 +22,6 @@
 #include "lsr.h"
 #include "uassert.h"
 #include "uhash.h"
-#include "ustr_imp.h"
 #include "uvector.h"
 
 #define UND_LSR LSR("und", "", "")
@@ -298,9 +297,7 @@ LSR getMaximalLsrOrUnd(const XLikelySubtags &likelySubtags, const Locale &locale
 
 int32_t hashLSR(const UHashTok token) {
     const LSR *lsr = static_cast<const LSR *>(token.pointer);
-    return (ustr_hashCharsN(lsr->language, lsr->languageLength) * 37 +
-            ustr_hashCharsN(lsr->script, lsr->scriptLength)) * 37 +
-            lsr->regionIndex;
+    return lsr->hashCode;
 }
 
 UBool compareLSRs(const UHashTok t1, const UHashTok t2) {
@@ -380,7 +377,8 @@ LocaleMatcher::LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
                 return;
             }
             const Locale &supportedLocale = *supportedLocales[i];
-            const LSR &lsr = lsrs[i] = getMaximalLsrOrUnd(likelySubtags, supportedLocale, errorCode);
+            LSR &lsr = lsrs[i] = getMaximalLsrOrUnd(likelySubtags, supportedLocale, errorCode);
+            lsr.setHashCode();
             if (U_FAILURE(errorCode)) { return; }
             if (idef < 0 && defLSR != nullptr && lsr == *defLSR) {
                 idef = i;
@@ -670,6 +668,7 @@ int32_t LocaleMatcher::getBestSuppIndex(LSR desiredLSR, LocaleLsrIterator *remai
         // Quick check for exact maximized LSR.
         // Returns suppIndex+1 where 0 means not found.
         if (supportedLsrToIndex != nullptr) {
+            desiredLSR.setHashCode();
             int32_t index = uhash_geti(supportedLsrToIndex, &desiredLSR);
             if (index != 0) {
                 int32_t suppIndex = index - 1;

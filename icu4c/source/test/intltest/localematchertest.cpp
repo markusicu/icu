@@ -494,7 +494,7 @@ void LocaleMatcherTest::testDataDriven() {
         if (errorCode.errIfFailureAndReset("test error on line %d", (int)test.lineNr)) {
             infoln(line);
         } else if (!ok) {
-            errln("test failure on line %d", (int)test.lineNr);
+            infoln("test failure on line %d", (int)test.lineNr);
             infoln(line);
         } else {
             ++numPassed;

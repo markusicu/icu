@@ -5,43 +5,37 @@
 // created: 2019may08 Markus W. Scherer
 
 #include "unicode/utypes.h"
+#include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
 #include "lsr.h"
+#include "ustr_imp.h"
 
 U_NAMESPACE_BEGIN
 
 LSR::LSR(char prefix, const char *lang, const char *scr, const char *r, UErrorCode &errorCode) :
-        language(nullptr), script(nullptr), region(r), owned(nullptr),
-        languageLength(0), scriptLength(0), regionIndex(indexForRegion(region)) {
+        language(nullptr), script(nullptr), region(r),
+        regionIndex(indexForRegion(region)) {
     if (U_SUCCESS(errorCode)) {
-        // Number of bytes for language + script with 2 prefixes and NUL terminators.
-        int32_t langSize = uprv_strlen(lang) + 1, scriptSize = uprv_strlen(scr) + 1;
-        int32_t langScriptSize = 2 + langSize + scriptSize;
-        char *p = owned = (char *)uprv_malloc(langScriptSize);
-        if (owned != nullptr) {
-            language = p;
-            *p++ = prefix;
-            uprv_memcpy(p, lang, langSize);
-            script = p += langSize;
-            *p++ = prefix;
-            uprv_memcpy(p, scr, scriptSize);
-            languageLength = langSize;
-            scriptLength = scriptSize;
-        } else {
-            errorCode = U_MEMORY_ALLOCATION_ERROR;
+        CharString langScript;
+        langScript.append(prefix, errorCode).append(lang, errorCode).append('\0', errorCode);
+        int32_t scriptOffset = langScript.length();
+        langScript.append(prefix, errorCode).append(scr, errorCode);
+        owned = langScript.cloneData(errorCode);
+        if (U_SUCCESS(errorCode)) {
+            language = owned;
+            script = owned + scriptOffset;
         }
     }
 }
 
 LSR::LSR(LSR &&other) U_NOEXCEPT :
         language(other.language), script(other.script), region(other.region), owned(other.owned),
-        languageLength(other.languageLength), scriptLength(other.scriptLength),
-        regionIndex(other.regionIndex) {
+        regionIndex(other.regionIndex), hashCode(other.hashCode) {
     if (owned != nullptr) {
         other.language = other.script = "";
         other.owned = nullptr;
-        other.languageLength = other.scriptLength = 0;
+        other.hashCode = 0;
     }
 }
 
@@ -53,24 +47,22 @@ LSR &LSR::operator=(LSR &&other) U_NOEXCEPT {
     language = other.language;
     script = other.script;
     region = other.region;
-    languageLength = other.languageLength;
-    scriptLength = other.scriptLength;
     regionIndex = other.regionIndex;
-    delete owned;
+    uprv_free(owned);
     owned = other.owned;
+    hashCode = other.hashCode;
     if (owned != nullptr) {
         other.language = other.script = "";
         other.owned = nullptr;
-        other.languageLength = other.scriptLength = 0;
+        other.hashCode = 0;
     }
     return *this;
 }
 
 UBool LSR::operator==(const LSR &other) const {
-    return languageLength == other.languageLength &&
-        uprv_memcmp(language, other.language, languageLength) == 0 &&
-        scriptLength == other.scriptLength &&
-        uprv_memcmp(script, other.script, scriptLength) == 0 &&
+    return
+        uprv_strcmp(language, other.language) == 0 &&
+        uprv_strcmp(script, other.script) == 0 &&
         regionIndex == other.regionIndex &&
         // Compare regions if both are ill-formed (and their indexes are 0).
         (regionIndex > 0 || uprv_strcmp(region, other.region) == 0);
@@ -84,11 +76,13 @@ inline int32_t upperOrdinal(int32_t c) {
 #if U_CHARSET_FAMILY==U_ASCII_FAMILY
     return c - 'A';
 #elif U_CHARSET_FAMILY==U_EBCDIC_FAMILY
-    if (c <= 'I') { return c - 'A'; }
+    // EBCDIC: A-Z (26 letters) is split into three ranges A-I (9 letters), J-R (9), S-Z (8).
+    // https://en.wikipedia.org/wiki/EBCDIC_037#Codepage_layout
+    if (c <= 'I') { return c - 'A'; }  // A-I --> 0-8
     if (c < 'J') { return -1; }
-    if (c <= 'R') { return c - 'J' + 9; }
+    if (c <= 'R') { return c - 'J' + 9; }  // J-R --> 9..17
     if (c < 'S') { return -1; }
-    return c - 'S' + 18;
+    return c - 'S' + 18;  // S-Z --> 18..25
 #else
 #   error Unknown charset family!
 #endif
@@ -113,6 +107,16 @@ int32_t LSR::indexForRegion(const char *region) {
         return 26 * a + b + 1001;
     }
     return 0;
+}
+
+LSR &LSR::setHashCode() {
+    if (hashCode == 0) {
+        hashCode =
+            (ustr_hashCharsN(language, uprv_strlen(language)) * 37 +
+            ustr_hashCharsN(script, uprv_strlen(script))) * 37 +
+            regionIndex;
+    }
+    return *this;
 }
 
 U_NAMESPACE_END

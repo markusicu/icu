@@ -19,21 +19,17 @@ struct LSR final : public UMemory {
     const char *language;
     const char *script;
     const char *region;
-    char *owned;
-    int32_t languageLength;
-    int32_t scriptLength;
-    /** Index for region, negative if ill-formed. @see indexForRegion */
-    int32_t regionIndex;
+    char *owned = nullptr;
+    /** Index for region, 0 if ill-formed. @see indexForRegion */
+    int32_t regionIndex = 0;
+    /** Only set for LSRs that will be used in a hash table. */
+    int32_t hashCode = 0;
 
-    LSR() :
-            language("und"), script(""), region(""), owned(nullptr),
-            languageLength(3), scriptLength(0),
-            regionIndex(indexForRegion(region)) {}
+    LSR() : language("und"), script(""), region("") {}
 
     /** Constructor which aliases all subtag pointers. */
     LSR(const char *lang, const char *scr, const char *r) :
-            language(lang),  script(scr), region(r), owned(nullptr),
-            languageLength(uprv_strlen(lang)), scriptLength(uprv_strlen(scr)),
+            language(lang),  script(scr), region(r),
             regionIndex(indexForRegion(region)) {}
     /**
      * Constructor which prepends the prefix to the language and script,
@@ -59,6 +55,8 @@ struct LSR final : public UMemory {
     inline UBool operator!=(const LSR &other) const {
         return !operator==(other);
     }
+
+    LSR &setHashCode();
 };
 
 U_NAMESPACE_END

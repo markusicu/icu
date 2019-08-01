@@ -157,13 +157,18 @@ _isKeywordValue(const char* key, const char* value, int32_t value_len)
 }
 
 static void
-_copyExtensions(const Locale& from, Locale& to, bool validate, UErrorCode& errorCode)
+_copyExtensions(const Locale& from, icu::StringEnumeration *keywords,
+                Locale& to, bool validate, UErrorCode& errorCode)
 {
     if (U_FAILURE(errorCode)) { return; }
-    LocalPointer<icu::StringEnumeration> iter(from.createKeywords(errorCode));
-    if (U_FAILURE(errorCode) || iter.isNull()) { return; }
+    LocalPointer<icu::StringEnumeration> ownedKeywords;
+    if (keywords == nullptr) {
+        ownedKeywords.adoptInstead(from.createKeywords(errorCode));
+        if (U_FAILURE(errorCode) || ownedKeywords.isNull()) { return; }
+        keywords = ownedKeywords.getAlias();
+    }
     const char* key;
-    while ((key = iter->next(nullptr, errorCode)) != nullptr) {
+    while ((key = keywords->next(nullptr, errorCode)) != nullptr) {
         CharString value;
         CharStringByteSink sink(&value);
         from.getKeywordValue(key, sink, errorCode);
@@ -203,7 +208,7 @@ _setUnicodeExtensions(Locale& locale, const CharString& value, UErrorCode& error
     CharString locale_str("und-u-", errorCode);
     locale_str.append(value, errorCode);
     _copyExtensions(
-        Locale::forLanguageTag(locale_str.data(), errorCode),
+        Locale::forLanguageTag(locale_str.data(), errorCode), nullptr,
         locale, false, errorCode);
 }
 
@@ -404,8 +409,8 @@ Locale makeBogusLocale() {
 void LocaleBuilder::copyExtensionsFrom(const Locale& src, UErrorCode& errorCode)
 {
     if (U_FAILURE(errorCode)) { return; }
-    LocalPointer<icu::StringEnumeration> iter(src.createKeywords(errorCode));
-    if (U_FAILURE(errorCode) || iter.isNull() || iter->next(nullptr, errorCode) == nullptr) {
+    LocalPointer<icu::StringEnumeration> keywords(src.createKeywords(errorCode));
+    if (U_FAILURE(errorCode) || keywords.isNull() || keywords->count(errorCode) == 0) {
         // Error, or no extensions to copy.
         return;
     }
@@ -416,7 +421,7 @@ void LocaleBuilder::copyExtensionsFrom(const Locale& src, UErrorCode& errorCode)
             return;
         }
     }
-    _copyExtensions(src, *extensions_, false, errorCode);
+    _copyExtensions(src, keywords.getAlias(), *extensions_, false, errorCode);
 }
 
 Locale LocaleBuilder::build(UErrorCode& errorCode)
@@ -443,7 +448,7 @@ Locale LocaleBuilder::build(UErrorCode& errorCode)
     }
     Locale product(locale_str.data());
     if (extensions_ != nullptr) {
-        _copyExtensions(*extensions_, product, true, errorCode);
+        _copyExtensions(*extensions_, nullptr, product, true, errorCode);
     }
     if (U_FAILURE(errorCode)) {
         return makeBogusLocale();

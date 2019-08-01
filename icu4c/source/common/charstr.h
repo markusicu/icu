@@ -82,9 +82,14 @@ public:
 
     const char *data() const { return buffer.getAlias(); }
     char *data() { return buffer.getAlias(); }
+    /**
+     * Allocates length()+1 chars and copies the NUL-terminated data().
+     * The caller must uprv_free() the result.
+     */
+    char *cloneData(UErrorCode &errorCode) const;
 
     bool operator==(StringPiece other) const {
-        return len==other.length() && uprv_memcmp(data(), other.data(), len) == 0;
+        return len == other.length() && (len == 0 || uprv_memcmp(data(), other.data(), len) == 0);
     }
     bool operator!=(StringPiece other) const {
         return !operator==(other);
