@@ -4,7 +4,6 @@
 // localematchertest.cpp
 // created: 2019jul04 Markus W. Scherer
 
-#include <stdio.h>  // TODO
 #include <string>
 #include <vector>
 
@@ -114,7 +113,6 @@ void LocaleMatcherTest::testBasics() {
         assertEquals("fromRange.getBestMatch(ja_JP)", "fr", locString(best));
     }
     // Code coverage: Variations of setting supported locales.
-    // TODO: Unit-test Locale::*Iterator directly, in a class-Locale test file.
     {
         std::vector<Locale> locales{ "fr", "en_GB", "en" };
         LocaleMatcher matcher = LocaleMatcher::Builder().
@@ -143,9 +141,11 @@ void LocaleMatcherTest::testBasics() {
     }
     {
         Locale *pointers[] = { locales, locales + 1, locales + 2 };
+        // Lambda with explicit reference return type to prevent copy-constructing a temporary
+        // which would be destructed right away.
         LocaleMatcher matcher = LocaleMatcher::Builder().
             setSupportedLocalesViaConverter(
-                ARRAY_RANGE(pointers), [](const Locale *p) { return *p; }).
+                ARRAY_RANGE(pointers), [](const Locale *p) -> const Locale & { return *p; }).
             build(errorCode);
         const Locale *best = matcher.getBestMatch("en_GB", errorCode);
         assertEquals("viaConverter.getBestMatch(en_GB)", "en_GB", locString(best));
@@ -212,7 +212,7 @@ void LocaleMatcherTest::testSupportedDefault() {
 
 void LocaleMatcherTest::testUnsupportedDefault() {
     // The default locale does not match any of the supported locales.
-    IcuTestErrorCode errorCode(*this, "testSupportedDefault");
+    IcuTestErrorCode errorCode(*this, "testUnsupportedDefault");
     Locale locales[] = { "fr", "en_GB", "en" };
     Locale def("de");
     LocaleMatcher matcher = LocaleMatcher::Builder().
