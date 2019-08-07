@@ -696,6 +696,7 @@ int32_t LocaleMatcher::getBestSuppIndex(LSR desiredLSR, LocaleLsrIterator *remai
         }
         desiredLSR = remainingIter->next(errorCode);
         if (U_FAILURE(errorCode)) { return -1; }
+        ++desiredIndex;
     }
     if (bestSupportedLsrIndex < 0) {
         // no good match

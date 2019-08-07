@@ -65,8 +65,11 @@ import com.ibm.icu.impl.locale.XLikelySubtags;
  */
 public final class LocaleMatcher {
     private static final LSR UND_LSR = new LSR("und","","");
+    // In ULocale, "und" and "" make the same object.
     private static final ULocale UND_ULOCALE = new ULocale("und");
+    // In Locale, "und" and "" make different objects.
     private static final Locale UND_LOCALE = new Locale("und");
+    private static final Locale EMPTY_LOCALE = new Locale("");
 
     // Activates debugging output to stderr with details of GetBestMatch.
     private static final boolean TRACE_MATCHER = false;
@@ -695,7 +698,7 @@ public final class LocaleMatcher {
     }
 
     private static final LSR getMaximalLsrOrUnd(Locale locale) {
-        if (locale.equals(UND_LOCALE)) {
+        if (locale.equals(UND_LOCALE) || locale.equals(EMPTY_LOCALE)) {
             return UND_LSR;
         } else {
             return XLikelySubtags.INSTANCE.makeMaximizedLsrFrom(locale);
@@ -961,6 +964,7 @@ public final class LocaleMatcher {
                 break;
             }
             desiredLSR = remainingIter.next();
+            ++desiredIndex;
         }
         if (bestSupportedLsrIndex < 0) {
             if (TRACE_MATCHER) {

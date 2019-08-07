@@ -12,8 +12,10 @@ package com.ibm.icu.dev.test.util;
 import java.io.BufferedReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -112,14 +114,58 @@ public class LocaleMatcherTest extends TestFmwk {
 
     @Test
     public void testBasics() {
-        final LocaleMatcher matcher = newLocaleMatcher(LocalePriorityList.add(ULocale.FRENCH).add(ULocale.UK)
-            .add(ULocale.ENGLISH).build());
+        LocaleMatcher matcher = newLocaleMatcher(
+                LocalePriorityList.
+                    add(ULocale.FRENCH).add(ULocale.UK).add(ULocale.ENGLISH).
+                    build());
         logln(matcher.toString());
 
         assertEquals(ULocale.UK, matcher.getBestMatch(ULocale.UK));
         assertEquals(ULocale.ENGLISH, matcher.getBestMatch(ULocale.US));
         assertEquals(ULocale.FRENCH, matcher.getBestMatch(ULocale.FRANCE));
         assertEquals(ULocale.FRENCH, matcher.getBestMatch(ULocale.JAPAN));
+
+        // API coverage
+        List<Locale> locales = new ArrayList<>();
+        locales.add(Locale.FRENCH);
+        locales.add(Locale.UK);
+        matcher = LocaleMatcher.builder().
+                setSupportedLocales(locales).addSupportedLocale(Locale.ENGLISH).
+                setDefaultLocale(Locale.GERMAN).build();
+        assertEquals(ULocale.UK, matcher.getBestMatch(ULocale.UK));
+        assertEquals(ULocale.ENGLISH, matcher.getBestMatch(ULocale.US));
+        assertEquals(ULocale.FRENCH, matcher.getBestMatch(ULocale.FRANCE));
+        assertEquals(ULocale.GERMAN, matcher.getBestMatch(ULocale.JAPAN));
+
+        ULocale udesired = new ULocale("en_GB");  // distinct object from ULocale.UK
+        LocaleMatcher.Result result = matcher.getBestMatchResult(udesired);
+        assertTrue("exactly desired en-GB object", udesired == result.getDesiredULocale());
+        assertEquals(Locale.UK, result.getDesiredLocale());
+        assertEquals(0, result.getDesiredIndex());
+        assertEquals(ULocale.UK, result.getSupportedULocale());
+        assertEquals(Locale.UK, result.getSupportedLocale());
+        assertEquals(1, result.getSupportedIndex());
+
+        LocalePriorityList list = LocalePriorityList.add(ULocale.JAPAN, ULocale.US).build();
+        result = matcher.getBestMatchResult(list);
+        assertEquals(1, result.getDesiredIndex());
+        assertEquals(Locale.US, result.getDesiredLocale());
+
+        Locale desired = new Locale("en", "US");  // distinct object from Locale.US
+        result = matcher.getBestLocaleResult(desired);
+        assertEquals(ULocale.US, result.getDesiredULocale());
+        assertTrue("exactly desired en-US object", desired == result.getDesiredLocale());
+        assertEquals(0, result.getDesiredIndex());
+        assertEquals(ULocale.ENGLISH, result.getSupportedULocale());
+        assertEquals(Locale.ENGLISH, result.getSupportedLocale());
+        assertEquals(2, result.getSupportedIndex());
+
+        result = matcher.getBestMatchResult(ULocale.JAPAN);
+        assertNull(result.getDesiredLocale());
+        assertNull(result.getDesiredULocale());
+        assertEquals(-1, result.getDesiredIndex());
+        assertEquals(ULocale.GERMAN, result.getSupportedULocale());
+        assertEquals(Locale.GERMAN, result.getSupportedLocale());
     }
 
     private static final String locString(ULocale loc) {
@@ -234,7 +280,11 @@ public class LocaleMatcherTest extends TestFmwk {
         final LocaleMatcher matcher = LocaleMatcher.builder().build();
         assertNull(matcher.getBestMatch(ULocale.FRENCH));
         LocaleMatcher.Result result = matcher.getBestMatchResult(ULocale.FRENCH);
+        assertNull(result.getDesiredULocale());
+        assertNull(result.getDesiredLocale());
+        assertEquals(-1, result.getDesiredIndex());
         assertNull(result.getSupportedULocale());
+        assertNull(result.getSupportedLocale());
         assertEquals(-1, result.getSupportedIndex());
     }
 
@@ -587,6 +637,14 @@ public class LocaleMatcherTest extends TestFmwk {
         assertEquals("region demotion", ULocale.FRENCH, regionDemotion.getBestMatch(desired));
     }
 
+    @Test
+    public void testCanonicalize() {
+        LocaleMatcher matcher = LocaleMatcher.builder().build();
+        assertEquals("bh --> bho", new ULocale("bho"), matcher.canonicalize(new ULocale("bh")));
+        assertEquals("mo-200 --> ro-CZ", new ULocale("ro_CZ"),
+                matcher.canonicalize(new ULocale("mo_200")));
+    }
+
     private static final class PerfCase {
         ULocale desired;
         ULocale expectedShort;
@@ -920,6 +978,18 @@ public class LocaleMatcherTest extends TestFmwk {
         }
     }
 
+    private static Locale toLocale(ULocale ulocale) {
+        return ulocale != null ? ulocale.toLocale() : null;
+    }
+
+    private static Iterable<Locale> localesFromULocales(Collection<ULocale> ulocales) {
+        List<Locale> locales = new ArrayList<>(ulocales.size());
+        for (ULocale ulocale : ulocales) {
+            locales.add(ulocale.toLocale());
+        }
+        return locales;
+    }
+
     @Test
     @Parameters(method = "readTestCases")
     public void dataDriven(TestCase test) {
@@ -956,19 +1026,73 @@ public class LocaleMatcherTest extends TestFmwk {
         ULocale expMatch = getULocaleOrNull(test.expMatch);
         if (test.expDesired.isEmpty() && test.expCombined.isEmpty()) {
             ULocale bestSupported = matcher.getBestMatch(test.desired);
-            assertEquals("bestSupported", expMatch, bestSupported);
+            assertEquals("bestSupported ULocale from string", expMatch, bestSupported);
+            LocalePriorityList desired = LocalePriorityList.add(test.desired).build();
+            if (desired.getULocales().size() == 1) {
+                ULocale desiredULocale = desired.iterator().next();
+                bestSupported = matcher.getBestMatch(desiredULocale);
+                assertEquals("bestSupported ULocale from ULocale", expMatch, bestSupported);
+                Locale desiredLocale = desiredULocale.toLocale();
+                Locale bestSupportedLocale = matcher.getBestLocale(desiredLocale);
+                assertEquals("bestSupported Locale from Locale",
+                        toLocale(expMatch), bestSupportedLocale);
+
+                LocaleMatcher.Result result = matcher.getBestMatchResult(desiredULocale);
+                assertEquals("result.getSupportedULocale from ULocale",
+                        expMatch, result.getSupportedULocale());
+                assertEquals("result.getSupportedLocale from ULocale",
+                        toLocale(expMatch), result.getSupportedLocale());
+
+                result = matcher.getBestLocaleResult(desiredLocale);
+                assertEquals("result.getSupportedULocale from Locale",
+                        expMatch, result.getSupportedULocale());
+                assertEquals("result.getSupportedLocale from Locale",
+                        toLocale(expMatch), result.getSupportedLocale());
+            } else {
+                bestSupported = matcher.getBestMatch(desired);
+                assertEquals("bestSupported ULocale from ULocale iterator",
+                        expMatch, bestSupported);
+                Locale bestSupportedLocale = matcher.getBestLocale(
+                        localesFromULocales(desired.getULocales()));
+                assertEquals("bestSupported Locale from Locale iterator",
+                        toLocale(expMatch), bestSupportedLocale);
+            }
         } else {
             LocalePriorityList desired = LocalePriorityList.add(test.desired).build();
             LocaleMatcher.Result result = matcher.getBestMatchResult(desired);
-            assertEquals("bestSupported", expMatch, result.getSupportedULocale());
+            assertEquals("result.getSupportedULocale from ULocales",
+                    expMatch, result.getSupportedULocale());
+            assertEquals("result.getSupportedLocale from ULocales",
+                    toLocale(expMatch), result.getSupportedLocale());
             if (!test.expDesired.isEmpty()) {
                 ULocale expDesired = getULocaleOrNull(test.expDesired);
-                assertEquals("bestDesired", expDesired, result.getDesiredULocale());
+                assertEquals("result.getDesiredULocale from ULocales",
+                        expDesired, result.getDesiredULocale());
+                assertEquals("result.getDesiredLocale from ULocales",
+                        toLocale(expDesired), result.getDesiredLocale());
             }
             if (!test.expCombined.isEmpty()) {
                 ULocale expCombined = getULocaleOrNull(test.expCombined);
-                ULocale combined = result.makeResolvedULocale();
-                assertEquals("combined", expCombined, combined);
+                assertEquals("combined ULocale from ULocales", expCombined, result.makeResolvedULocale());
+                assertEquals("combined Locale from ULocales", toLocale(expCombined), result.makeResolvedLocale());
+            }
+
+            result = matcher.getBestLocaleResult(localesFromULocales(desired.getULocales()));
+            assertEquals("result.getSupportedULocale from Locales",
+                    expMatch, result.getSupportedULocale());
+            assertEquals("result.getSupportedLocale from Locales",
+                    toLocale(expMatch), result.getSupportedLocale());
+            if (!test.expDesired.isEmpty()) {
+                ULocale expDesired = getULocaleOrNull(test.expDesired);
+                assertEquals("result.getDesiredULocale from Locales",
+                        expDesired, result.getDesiredULocale());
+                assertEquals("result.getDesiredLocale from Locales",
+                        toLocale(expDesired), result.getDesiredLocale());
+            }
+            if (!test.expCombined.isEmpty()) {
+                ULocale expCombined = getULocaleOrNull(test.expCombined);
+                assertEquals("combined ULocale from Locales", expCombined, result.makeResolvedULocale());
+                assertEquals("combined Locale from Locales", toLocale(expCombined), result.makeResolvedLocale());
             }
         }
     }

@@ -9,6 +9,8 @@
 
 package com.ibm.icu.dev.test.util;
 
+import java.util.Set;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -50,6 +52,28 @@ public class LocalePriorityListTest extends TestFmwk {
 
         LocalePriorityList list5 = LocalePriorityList.add("af, fr;q=0.9, en").build(true);
         assertEquals("af, en, fr;q=0.9", list5.toString());
+    }
+
+    @Test
+    public void testGetULocales() {
+        LocalePriorityList list = LocalePriorityList.add("af, en, fr").build();
+        Set<ULocale> locales = list.getULocales();
+        assertEquals("number of locales", 3, locales.size());
+        assertTrue("fr", locales.contains(ULocale.FRENCH));
+    }
+
+    @Test
+    public void testIterator() {
+        LocalePriorityList list = LocalePriorityList.add("af, en, fr").build();
+        ULocale af = new ULocale("af");
+        int count = 0;
+        for (ULocale locale : list) {
+            assertTrue("expected locale",
+                    locale.equals(af) || locale.equals(ULocale.ENGLISH) ||
+                    locale.equals(ULocale.FRENCH));
+            ++count;
+        }
+        assertEquals("number of locales", 3, count);
     }
 
     @Test
