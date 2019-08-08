@@ -475,12 +475,13 @@ U_NAMESPACE_BEGIN
 
 class ResourceDataValue : public ResourceValue {
 public:
-    ResourceDataValue() : pResData(NULL), res(static_cast<Resource>(URES_NONE)) {}
+    ResourceDataValue() : res(static_cast<Resource>(URES_NONE)) {}
     virtual ~ResourceDataValue();
 
-    void setData(const ResourceData *data) { resData = *data; pResData = &resData; }
+    void setData(const ResourceData *data) { resData = *data; }
     void setResource(Resource r) { res = r; }
 
+    const ResourceData &getData() const { return resData; }
     virtual UResType getType() const;
     virtual const UChar *getString(int32_t &length, UErrorCode &errorCode) const;
     virtual const UChar *getAliasString(int32_t &length, UErrorCode &errorCode) const;
@@ -497,11 +498,9 @@ public:
                                                   UErrorCode &errorCode) const;
     virtual UnicodeString getStringOrFirstOfArray(UErrorCode &errorCode) const;
 
-    const ResourceData *pResData;
-
 private:
     // TODO: If UResourceBundle.fResData becomes a pointer,
-    // then remove this field again.
+    // then remove this value field again and just store a pResData pointer.
     ResourceData resData;
     Resource res;
 };

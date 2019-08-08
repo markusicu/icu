@@ -2002,9 +2002,14 @@ void getAllItemsWithFallback(
 
 }  // namespace
 
+// Requires a ResourceDataValue fill-in, so that we need not cast from a ResourceValue.
+// Unfortunately, the caller must know which subclass to make and pass in.
+// Alternatively, we could make it as polymorphic as in Java by
+// returning a ResourceValue pointer (possibly wrapped into a LocalPointer)
+// that the caller then owns.
 U_CAPI void U_EXPORT2
 ures_getValueWithFallback(const UResourceBundle *bundle, const char *path,
-                          icu::ResourceValue &value, UErrorCode &errorCode) {
+                          ResourceDataValue &value, UErrorCode &errorCode) {
     if (U_FAILURE(errorCode)) { return; }
     if (path == nullptr) {
         errorCode = U_ILLEGAL_ARGUMENT_ERROR;
@@ -2021,9 +2026,8 @@ ures_getValueWithFallback(const UResourceBundle *bundle, const char *path,
             return;
         }
     }
-    ResourceDataValue &rdValue = static_cast<ResourceDataValue &>(value);
-    rdValue.setData(&rb->fResData);
-    rdValue.setResource(rb->fRes);
+    value.setData(&rb->fResData);
+    value.setResource(rb->fRes);
 }
 
 U_CAPI void U_EXPORT2

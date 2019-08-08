@@ -68,6 +68,34 @@ uprv_isInvariantUString(const UChar *s, int32_t length);
 #   error Unknown charset family!
 #endif
 
+#ifdef __cplusplus
+
+U_NAMESPACE_BEGIN
+
+/**
+ * Like U_UPPER_ORDINAL(x) but with validation.
+ * Returns 0..25 for A..Z else a value outside 0..25.
+ */
+inline int32_t uprv_upperOrdinal(int32_t c) {
+#if U_CHARSET_FAMILY==U_ASCII_FAMILY
+    return c - 'A';
+#elif U_CHARSET_FAMILY==U_EBCDIC_FAMILY
+    // EBCDIC: A-Z (26 letters) is split into three ranges A-I (9 letters), J-R (9), S-Z (8).
+    // https://en.wikipedia.org/wiki/EBCDIC_037#Codepage_layout
+    if (c <= 'I') { return c - 'A'; }  // A-I --> 0-8
+    if (c < 'J') { return -1; }
+    if (c <= 'R') { return c - 'J' + 9; }  // J-R --> 9..17
+    if (c < 'S') { return -1; }
+    return c - 'S' + 18;  // S-Z --> 18..25
+#else
+#   error Unknown charset family!
+#endif
+}
+
+U_NAMESPACE_END
+
+#endif
+
 /**
  * Returns true if c == '@' is possible.
  * The @ sign is variant, and the @ sign used on one

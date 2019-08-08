@@ -27,11 +27,15 @@ void addCStringTest(TestNode** root);
 
 static void TestInvariant(void);
 static void TestCompareInvEbcdicAsAscii(void);
+static void TestIsAtSign(void);
+static void TestInvCharToAscii(void);
 
 void addCStringTest(TestNode** root) {
-    addTest(root, &TestAPI,   "tsutil/cstrtest/TestAPI");
-    addTest(root, &TestInvariant,   "tsutil/cstrtest/TestInvariant");
+    addTest(root, &TestAPI, "tsutil/cstrtest/TestAPI");
+    addTest(root, &TestInvariant, "tsutil/cstrtest/TestInvariant");
     addTest(root, &TestCompareInvEbcdicAsAscii, "tsutil/cstrtest/TestCompareInvEbcdicAsAscii");
+    addTest(root, &TestIsAtSign, "tsutil/cstrtest/TestIsAtSign");
+    addTest(root, &TestInvCharToAscii, "tsutil/cstrtest/TestInvCharToAscii");
 }
 
 static void TestAPI(void)
@@ -337,5 +341,42 @@ TestCompareInvEbcdicAsAscii() {
             log_err("uprv_compareInvEbcdicAsAscii(%s, %s)=%hd is wrong\n",
                     invStrings[i][1], invStrings[i-1][1], (short)diff2);
         }
+    }
+}
+
+// See U_CHARSET_FAMILY in unicode/platform.h.
+static const char *nativeInvChars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "0123456789 \"%&'()*+,-./:;<=>?_";
+static const UChar *asciiInvChars =
+    u"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    u"abcdefghijklmnopqrstuvwxyz"
+    u"0123456789 \"%&'()*+,-./:;<=>?_";
+
+static void
+TestIsAtSign() {
+    for (int32_t i = 0;; ++i) {
+        char ic = nativeInvChars[i];
+        uint8_t ac = asciiInvChars[i];
+        UBool expected = ac == u'@';
+        UBool actual = uprv_isAtSign(ic);
+        if (actual != expected) {
+            log_err("uprv_isAtSign('%c')=%d is wrong\n", ic, (int)actual);
+        }
+        if (ic == 0) { break; }
+    }
+}
+
+static void
+TestInvCharToAscii() {
+    for (int32_t i = 0;; ++i) {
+        char ic = nativeInvChars[i];
+        uint8_t ac = asciiInvChars[i];
+        uint8_t actual = uprv_invCharToAscii(ic);
+        if (actual != ac) {
+            log_err("uprv_invCharToAscii('%c') did not convert to ASCII 0x%02x\n", ic, (int)ac);
+        }
+        if (ic == 0) { break; }
     }
 }

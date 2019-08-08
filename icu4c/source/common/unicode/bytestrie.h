@@ -103,7 +103,7 @@ public:
      * @draft ICU 65
      */
     uint64_t getState64() const {
-        return ((uint64_t)(remainingMatchLength_ + 2) << kState64RemainingShift) |
+        return (static_cast<uint64_t>(remainingMatchLength_ + 2) << kState64RemainingShift) |
             (uint64_t)(pos_ - bytes_);
     }
 
@@ -122,7 +122,7 @@ public:
      * @draft ICU 65
      */
     BytesTrie &resetToState64(uint64_t state) {
-        remainingMatchLength_ = (int32_t)(state >> kState64RemainingShift) - 2;
+        remainingMatchLength_ = static_cast<int32_t>(state >> kState64RemainingShift) - 2;
         pos_ = bytes_ + (state & kState64PosMask);
         return *this;
     }
@@ -539,8 +539,8 @@ private:
     // The remainingMatchLength_ is -1..14=(kMaxLinearMatchLength=0x10)-2
     // so we need at least 5 bits for that.
     // We add 2 to store it as a positive value 1..16=kMaxLinearMatchLength.
-    static const int32_t kState64RemainingShift = 59;
-    static const uint64_t kState64PosMask = UINT64_C(0x07ffffffffffffff);
+    static constexpr int32_t kState64RemainingShift = 59;
+    static constexpr uint64_t kState64PosMask = (UINT64_C(1) << kState64RemainingShift) - 1;
 
     uint8_t *ownedArray_;
 

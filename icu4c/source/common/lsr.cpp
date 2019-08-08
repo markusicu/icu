@@ -9,6 +9,7 @@
 #include "cmemory.h"
 #include "cstring.h"
 #include "lsr.h"
+#include "uinvchar.h"
 #include "ustr_imp.h"
 
 U_NAMESPACE_BEGIN
@@ -68,28 +69,6 @@ UBool LSR::operator==(const LSR &other) const {
         (regionIndex > 0 || uprv_strcmp(region, other.region) == 0);
 }
 
-namespace {
-
-// Like uinvchar.h U_UPPER_ORDINAL(x) but with validation.
-// Returns 0..25 for A..Z else a value outside 0..25.
-inline int32_t upperOrdinal(int32_t c) {
-#if U_CHARSET_FAMILY==U_ASCII_FAMILY
-    return c - 'A';
-#elif U_CHARSET_FAMILY==U_EBCDIC_FAMILY
-    // EBCDIC: A-Z (26 letters) is split into three ranges A-I (9 letters), J-R (9), S-Z (8).
-    // https://en.wikipedia.org/wiki/EBCDIC_037#Codepage_layout
-    if (c <= 'I') { return c - 'A'; }  // A-I --> 0-8
-    if (c < 'J') { return -1; }
-    if (c <= 'R') { return c - 'J' + 9; }  // J-R --> 9..17
-    if (c < 'S') { return -1; }
-    return c - 'S' + 18;  // S-Z --> 18..25
-#else
-#   error Unknown charset family!
-#endif
-}
-
-}  // namespace
-
 int32_t LSR::indexForRegion(const char *region) {
     int32_t c = region[0];
     int32_t a = c - '0';
@@ -100,9 +79,9 @@ int32_t LSR::indexForRegion(const char *region) {
         if (c < 0 || 9 < c || region[3] != 0) { return 0; }
         return (10 * a + b) * 10 + c + 1;
     } else {  // letters: "DE"
-        a = upperOrdinal(c);
+        a = uprv_upperOrdinal(c);
         if (a < 0 || 25 < a) { return 0; }
-        int32_t b = upperOrdinal(region[1]);
+        int32_t b = uprv_upperOrdinal(region[1]);
         if (b < 0 || 25 < b || region[2] != 0) { return 0; }
         return 26 * a + b + 1001;
     }
