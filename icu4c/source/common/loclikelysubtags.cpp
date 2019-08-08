@@ -395,7 +395,6 @@ LSR XLikelySubtags::makeMaximizedLsrFrom(const Locale &locale, UErrorCode &error
     if (uprv_isAtSign(name[0]) && name[1] == 'x' && name[2] == '=') {  // name.startsWith("@x=")
         // Private use language tag x-subtag-subtag...
         return LSR(name, "", "");
-        // TODO: think about lifetime of LSR.language
     }
     return makeMaximizedLsr(locale.getLanguage(), locale.getScript(), locale.getCountry(),
                             locale.getVariant(), errorCode);

@@ -166,6 +166,7 @@ public class LocaleMatcherTest extends TestFmwk {
         assertEquals(-1, result.getDesiredIndex());
         assertEquals(ULocale.GERMAN, result.getSupportedULocale());
         assertEquals(Locale.GERMAN, result.getSupportedLocale());
+        assertEquals(-1, result.getSupportedIndex());
     }
 
     private static final String locString(ULocale loc) {

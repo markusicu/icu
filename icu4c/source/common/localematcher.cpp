@@ -7,8 +7,6 @@
 #ifndef __LOCMATCHER_H__
 #define __LOCMATCHER_H__
 
-#include <stdio.h>  // TODO
-
 #include "unicode/utypes.h"
 #include "unicode/localebuilder.h"
 #include "unicode/localematcher.h"
@@ -331,12 +329,6 @@ LocaleMatcher::LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
         supportedLsrs(nullptr), supportedIndexes(nullptr), supportedLsrsLength(0),
         ownedDefaultLocale(nullptr), defaultLocale(nullptr), defaultLocaleIndex(-1) {
     if (U_FAILURE(errorCode)) { return; }
-#if 0  // TODO: begin remove
-    Locale locale("zh-TW");
-    LSR lsr = getMaximalLsrOrUnd(likelySubtags, locale, errorCode);
-    printf("'%s' --> maximal '%s-%s-%s'\n", locale.getName(), lsr.language, lsr.script, lsr.region);
-#endif  // TODO: end remove
-
     if (thresholdDistance < 0) {
         thresholdDistance = localeDistance.getDefaultScriptDistance();
     }

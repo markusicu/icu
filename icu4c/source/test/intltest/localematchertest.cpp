@@ -53,6 +53,7 @@ public:
     void runIndexedTest(int32_t index, UBool exec, const char *&name, char *par=NULL);
 
     void testEmpty();
+    void testCopyErrorTo();
     void testBasics();
     void testSupportedDefault();
     void testUnsupportedDefault();
@@ -75,6 +76,7 @@ void LocaleMatcherTest::runIndexedTest(int32_t index, UBool exec, const char *&n
     }
     TESTCASE_AUTO_BEGIN;
     TESTCASE_AUTO(testEmpty);
+    TESTCASE_AUTO(testCopyErrorTo);
     TESTCASE_AUTO(testBasics);
     TESTCASE_AUTO(testSupportedDefault);
     TESTCASE_AUTO(testUnsupportedDefault);
@@ -91,10 +93,25 @@ void LocaleMatcherTest::testEmpty() {
     const Locale *best = matcher.getBestMatch(Locale::getFrench(), errorCode);
     assertEquals("getBestMatch(fr)", "(null)", locString(best));
     LocaleMatcher::Result result = matcher.getBestMatchResult("fr", errorCode);
+    assertEquals("getBestMatchResult(fr).des", "(null)", locString(result.getDesiredLocale()));
+    assertEquals("getBestMatchResult(fr).desIndex", -1, result.getDesiredIndex());
     assertEquals("getBestMatchResult(fr).supp",
                  "(null)", locString(result.getSupportedLocale()));
     assertEquals("getBestMatchResult(fr).suppIndex",
                  -1, result.getSupportedIndex());
+}
+
+void LocaleMatcherTest::testCopyErrorTo() {
+    IcuTestErrorCode errorCode(*this, "testCopyErrorTo");
+    // The builder does not set any errors except out-of-memory.
+    // Test what we can.
+    LocaleMatcher::Builder builder;
+    UErrorCode success = U_ZERO_ERROR;
+    assertFalse("no error", builder.copyErrorTo(success));
+    assertTrue("still success", U_SUCCESS(success));
+    UErrorCode failure = U_INVALID_FORMAT_ERROR;
+    assertTrue("failure passed in", builder.copyErrorTo(failure));
+    assertEquals("same failure", U_INVALID_FORMAT_ERROR, failure);
 }
 
 void LocaleMatcherTest::testBasics() {
@@ -177,13 +194,61 @@ void LocaleMatcherTest::testBasics() {
                 " el, fr;q=0.555555, en-GB ; q = 0.88  , el; q =0, en;q=0.88 , fr ").
             build(errorCode);
         const Locale *best = matcher.getBestMatchForListString("el, fr, fr;q=0, en-GB", errorCode);
-        assertEquals("added.getBestMatch(en_GB)", "en_GB", locString(best));
+        assertEquals("fromList.getBestMatch(en_GB)", "en_GB", locString(best));
         best = matcher.getBestMatch("en_US", errorCode);
-        assertEquals("added.getBestMatch(en_US)", "en", locString(best));
+        assertEquals("fromList.getBestMatch(en_US)", "en", locString(best));
         best = matcher.getBestMatch("fr_FR", errorCode);
-        assertEquals("added.getBestMatch(fr_FR)", "fr", locString(best));
+        assertEquals("fromList.getBestMatch(fr_FR)", "fr", locString(best));
         best = matcher.getBestMatch("ja_JP", errorCode);
-        assertEquals("added.getBestMatch(ja_JP)", "fr", locString(best));
+        assertEquals("fromList.getBestMatch(ja_JP)", "fr", locString(best));
+    }
+    // more API coverage
+    {
+        LocalePriorityList list("fr, en-GB", errorCode);
+        LocalePriorityList::Iterator iter(list.iterator());
+        LocaleMatcher matcher = LocaleMatcher::Builder().
+            setSupportedLocales(iter).
+            addSupportedLocale(Locale::getEnglish()).
+            setDefaultLocale(&Locale::getGerman()).
+            build(errorCode);
+        const Locale *best = matcher.getBestMatch("en_GB", errorCode);
+        assertEquals("withDefault.getBestMatch(en_GB)", "en_GB", locString(best));
+        best = matcher.getBestMatch("en_US", errorCode);
+        assertEquals("withDefault.getBestMatch(en_US)", "en", locString(best));
+        best = matcher.getBestMatch("fr_FR", errorCode);
+        assertEquals("withDefault.getBestMatch(fr_FR)", "fr", locString(best));
+        best = matcher.getBestMatch("ja_JP", errorCode);
+        assertEquals("withDefault.getBestMatch(ja_JP)", "de", locString(best));
+
+        Locale desired("en_GB");  // distinct object from Locale.UK
+        LocaleMatcher::Result result = matcher.getBestMatchResult(desired, errorCode);
+        assertTrue("withDefault: exactly desired en-GB object",
+                   &desired == result.getDesiredLocale());
+        assertEquals("withDefault: en-GB desired index", 0, result.getDesiredIndex());
+        assertEquals("withDefault: en-GB supported",
+                     "en_GB", locString(result.getSupportedLocale()));
+        assertEquals("withDefault: en-GB supported index", 1, result.getSupportedIndex());
+
+        LocalePriorityList list2("ja-JP, en-US", errorCode);
+        LocalePriorityList::Iterator iter2(list2.iterator());
+        result = matcher.getBestMatchResult(iter2, errorCode);
+        assertEquals("withDefault: ja-JP, en-US desired index", 1, result.getDesiredIndex());
+        assertEquals("withDefault: ja-JP, en-US desired",
+                     "en_US", locString(result.getDesiredLocale()));
+
+        desired = Locale("en", "US");  // distinct object from Locale.US
+        result = matcher.getBestMatchResult(desired, errorCode);
+        assertTrue("withDefault: exactly desired en-US object",
+                   &desired == result.getDesiredLocale());
+        assertEquals("withDefault: en-US desired index", 0, result.getDesiredIndex());
+        assertEquals("withDefault: en-US supported", "en", locString(result.getSupportedLocale()));
+        assertEquals("withDefault: en-US supported index", 2, result.getSupportedIndex());
+
+        result = matcher.getBestMatchResult("ja_JP", errorCode);
+        assertEquals("withDefault: ja-JP desired", "(null)", locString(result.getDesiredLocale()));
+        assertEquals("withDefault: ja-JP desired index", -1, result.getDesiredIndex());
+        assertEquals("withDefault: ja-JP supported", "de", locString(result.getSupportedLocale()));
+        assertEquals("withDefault: ja-JP supported index", -1, result.getSupportedIndex());
     }
 }
 
@@ -439,17 +504,36 @@ UBool LocaleMatcherTest::dataDriven(const TestCase &test, IcuTestErrorCode &erro
     if (test.expDesired.isEmpty() && test.expCombined.isEmpty()) {
         StringPiece desiredSP = test.desired.toStringPiece();
         const Locale *bestSupported = matcher.getBestMatchForListString(desiredSP, errorCode);
-        return assertEquals("bestSupported", locString(expMatch), locString(bestSupported));
+        if (!assertEquals("bestSupported from string",
+                          locString(expMatch), locString(bestSupported))) {
+            return FALSE;
+        }
+        LocalePriorityList desired(test.desired.toStringPiece(), errorCode);
+        LocalePriorityList::Iterator desiredIter = desired.iterator();
+        if (desired.getLength() == 1) {
+            const Locale &desiredLocale = desiredIter.next();
+            bestSupported = matcher.getBestMatch(desiredLocale, errorCode);
+            UBool ok = assertEquals("bestSupported from Locale",
+                                    locString(expMatch), locString(bestSupported));
+
+            LocaleMatcher::Result result = matcher.getBestMatchResult(desiredLocale, errorCode);
+            return ok & assertEquals("result.getSupportedLocale from Locale",
+                                     locString(expMatch), locString(result.getSupportedLocale()));
+        } else {
+            bestSupported = matcher.getBestMatch(desiredIter, errorCode);
+            return assertEquals("bestSupported from Locale iterator",
+                                locString(expMatch), locString(bestSupported));
+        }
     } else {
         LocalePriorityList desired(test.desired.toStringPiece(), errorCode);
         LocalePriorityList::Iterator desiredIter = desired.iterator();
         LocaleMatcher::Result result = matcher.getBestMatchResult(desiredIter, errorCode);
-        UBool ok = assertEquals("bestSupported",
+        UBool ok = assertEquals("result.getSupportedLocale from Locales",
                                 locString(expMatch), locString(result.getSupportedLocale()));
         if (!test.expDesired.isEmpty()) {
             Locale expDesiredLocale("");
             Locale *expDesired = getLocaleOrNull(test.expDesired, expDesiredLocale);
-            ok &= assertEquals("bestDesired",
+            ok &= assertEquals("result.getDesiredLocale from Locales",
                                locString(expDesired), locString(result.getDesiredLocale()));
         }
         if (!test.expCombined.isEmpty()) {
@@ -460,7 +544,8 @@ UBool LocaleMatcherTest::dataDriven(const TestCase &test, IcuTestErrorCode &erro
             Locale expCombinedLocale("");
             Locale *expCombined = getLocaleOrNull(test.expCombined, expCombinedLocale);
             Locale combined = result.makeResolvedLocale(errorCode);
-            ok &= assertEquals("combined", locString(expCombined), locString(&combined));
+            ok &= assertEquals("combined Locale from Locales",
+                               locString(expCombined), locString(&combined));
         }
         return ok;
     }

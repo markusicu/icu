@@ -219,7 +219,7 @@ bool LocalePriorityList::add(const Locale &locale, int32_t weight, UErrorCode &e
 void LocalePriorityList::sort(UErrorCode &errorCode) {
     // Sort by descending weights if there is a mix of weights.
     // The comparator forces a stable sort via the item index.
-    if (U_FAILURE(errorCode) || listLength == numRemoved || !hasWeights) { return; }
+    if (U_FAILURE(errorCode) || getLength() <= 1 || !hasWeights) { return; }
     uprv_sortArray(list->array.getAlias(), listLength, sizeof(LocaleAndWeight),
                    compareLocaleAndWeight, nullptr, FALSE, &errorCode);
 }
