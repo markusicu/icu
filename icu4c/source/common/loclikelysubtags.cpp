@@ -108,7 +108,6 @@ private:
 
 }  // namespace
 
-// VisibleForTesting -- TODO: ??
 struct XLikelySubtagsData {
     UResourceBundle *langInfoBundle = nullptr;
     UniqueCharStrings strings;
@@ -135,7 +134,6 @@ struct XLikelySubtagsData {
         delete[] paradigms;
     }
 
-    // VisibleForTesting -- TODO: ??
     void load(UErrorCode &errorCode) {
         langInfoBundle = ures_openDirect(nullptr, "langInfo", &errorCode);
         if (U_FAILURE(errorCode)) { return; }

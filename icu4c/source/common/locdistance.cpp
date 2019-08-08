@@ -72,7 +72,6 @@ void U_CALLCONV LocaleDistance::initLocaleDistance(UErrorCode &errorCode) {
     ucln_common_registerCleanup(UCLN_COMMON_LOCALE_DISTANCE, cleanup);
 }
 
-// TODO: VisibleForTesting
 const LocaleDistance *LocaleDistance::getSingleton(UErrorCode &errorCode) {
     if (U_FAILURE(errorCode)) { return nullptr; }
     umtx_initOnce(gInitOnce, &LocaleDistance::initLocaleDistance, errorCode);
@@ -93,20 +92,6 @@ LocaleDistance::LocaleDistance(const LocaleDistanceData &data) :
     defaultDemotionPerDesiredLocale = getBestIndexAndDistance(en, &p_enGB, 1,
             50, ULOCMATCH_FAVOR_LANGUAGE) & 0xff;
 }
-
-#if 0
-// TODO: VisibleForTesting
-int32_t testOnlyDistance(const Locale &desired, const Locale &supported,
-                         int32_t threshold, ULocMatchFavorSubtag favorSubtag,
-                         UErrorCode &errorCode) const {
-    const XLikelySubtags &likely = *XLikelySubtags::getSingleton(errorCode);
-    if (U_FAILURE(errorCode)) { return ABOVE_THRESHOLD; }
-    LSR supportedLSR = likely.makeMaximizedLsrFrom(supported);
-    LSR desiredLSR = likely.makeMaximizedLsrFrom(desired);
-    return getBestIndexAndDistance(desiredLSR, &supportedLSR, 1,
-            threshold, favorSubtag) & 0xff;
-}
-#endif
 
 int32_t LocaleDistance::getBestIndexAndDistance(
         const LSR &desired,

@@ -38,18 +38,10 @@ public:
                                     const LSR **supportedLsrs, int32_t supportedLsrsLength,
                                     int32_t threshold, ULocMatchFavorSubtag favorSubtag) const;
 
-#if 0
-    // TODO: VisibleForTesting
-    int32_t testOnlyDistance(const Locale &desired, const Locale &supported,
-                             int32_t threshold, ULocMatchFavorSubtag favorSubtag,
-                             UErrorCode &errorCode) const;
-#endif
-
     int32_t getParadigmLSRsLength() const { return paradigmLSRsLength; }
 
     UBool isParadigmLSR(const LSR &lsr) const;
 
-    // TODO: VisibleForTesting??
     int32_t getDefaultScriptDistance() const {
         return defaultScriptDistance;
     }
