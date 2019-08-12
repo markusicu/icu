@@ -69,6 +69,8 @@ public:
     void Test4147315(void);
     void Test4147317(void);
     void Test4147552(void);
+
+    void Test20639_DeprecatesISO3Language();
     
     void TestVariantParsing(void);
 
@@ -117,6 +119,7 @@ public:
     void TestBug13277();
     void TestBug13554();
     void TestBug20410();
+    void TestConstructorAcceptsBCP47();
 
     void TestAddLikelySubtags();
     void TestMinimizeSubtags();

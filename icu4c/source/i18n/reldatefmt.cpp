@@ -315,6 +315,10 @@ struct RelDateTimeFmtDataSink : public ResourceSink {
                 return UDAT_ABSOLUTE_FRIDAY;
             case SATURDAY:
                 return UDAT_ABSOLUTE_SATURDAY;
+            case HOUR:
+                return UDAT_ABSOLUTE_HOUR;
+            case MINUTE:
+                return UDAT_ABSOLUTE_MINUTE;
             default:
                 return -1;
         }
@@ -1157,6 +1161,8 @@ void RelativeDateTimeFormatter::formatRelativeImpl(
         case UDAT_REL_UNIT_THURSDAY:  absunit = UDAT_ABSOLUTE_THURSDAY; break;
         case UDAT_REL_UNIT_FRIDAY:  absunit = UDAT_ABSOLUTE_FRIDAY; break;
         case UDAT_REL_UNIT_SATURDAY:  absunit = UDAT_ABSOLUTE_SATURDAY; break;
+        case UDAT_REL_UNIT_HOUR:  absunit = UDAT_ABSOLUTE_HOUR; break;
+        case UDAT_REL_UNIT_MINUTE:  absunit = UDAT_ABSOLUTE_MINUTE; break;
         default: break;
     }
     if (direction != UDAT_DIRECTION_COUNT && absunit != UDAT_ABSOLUTE_UNIT_COUNT) {
@@ -1184,8 +1190,8 @@ UnicodeString& RelativeDateTimeFormatter::adjustForContext(UnicodeString &str) c
 
     // Must guarantee that one thread at a time accesses the shared break
     // iterator.
-    static UMutex *gBrkIterMutex = STATIC_NEW(UMutex);
-    Mutex lock(gBrkIterMutex);
+    static UMutex gBrkIterMutex;
+    Mutex lock(&gBrkIterMutex);
     str.toTitle(
             fOptBreakIterator->get(),
             fLocale,

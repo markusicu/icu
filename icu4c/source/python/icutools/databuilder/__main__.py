@@ -84,12 +84,6 @@ flag_parser.add_argument(
     action = "store_true"
 )
 flag_parser.add_argument(
-    "--ignore_xml_deprecates",
-    help = "Whether to ignore XML deprecates files for building res_index.",
-    default = False,
-    action = "store_true"
-)
-flag_parser.add_argument(
     "--seqmode",
     help = "Whether to optimize rules to be run sequentially (fewer threads) or in parallel (many threads). Defaults to 'sequential', which is better for unix-exec and windows-exec modes. 'parallel' is often better for massively parallel build systems.",
     choices = ["sequential", "parallel"],
@@ -134,9 +128,6 @@ class Config(object):
         # Boolean: Whether to include core Unicode data files in the .dat file
         self.include_uni_core_data = args.include_uni_core_data
 
-        # Boolean: Whether to ignore the XML files
-        self.ignore_xml_deprecates = args.ignore_xml_deprecates
-
         # Default fields before processing filter file
         self.filters_json_data = {}
 
@@ -159,6 +150,11 @@ class Config(object):
         self.strategy = "subtractive"
         if "strategy" in self.filters_json_data:
             self.strategy = self.filters_json_data["strategy"]
+
+        # True or False (could be extended later to support enum/list)
+        self.use_pool_bundle = True
+        if "usePoolBundle" in self.filters_json_data:
+            self.use_pool_bundle = self.filters_json_data["usePoolBundle"]
 
     def _parse_filter_file(self, f):
         # Use the Hjson parser if it is available; otherwise, use vanilla JSON.
@@ -268,7 +264,11 @@ def main(argv):
 
     # Automatically load BUILDRULES from the src_dir
     sys.path.append(args.src_dir)
-    import BUILDRULES
+    try:
+        import BUILDRULES
+    except ImportError:
+        print("Cannot find BUILDRULES! Did you set your --src_dir?", file=sys.stderr)
+        sys.exit(1)
 
     requests = BUILDRULES.generate(config, glob, common)
     requests = filtration.apply_filters(requests, config)

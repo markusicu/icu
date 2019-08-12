@@ -1,0 +1,25 @@
+{
+  "localeFilter": {
+    "filterType": "language",
+    "whitelist": [
+      "en",
+      "de",
+      "zh"
+    ]
+  },
+// Test mixed feature filter and resource filter
+  "featureFilters": {
+    "misc": {
+      "whitelist": ["supplementalData"]
+    }
+  },
+  "resourceFilters": [
+    {
+      "categories": ["misc"],
+      "files": {
+	"whitelist": ["supplementalData"]
+      },
+      "rules": ["+/*"]
+    }
+  ]
+}

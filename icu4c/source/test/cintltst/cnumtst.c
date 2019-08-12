@@ -498,7 +498,7 @@ free(result);
     pattern=unum_open(UNUM_IGNORE,temp1, u_strlen(temp1), NULL, NULL,&status);
     if(U_FAILURE(status))
     {
-        log_err("error in unum_openPattern(): %s\n", myErrorName(status) );;
+        log_err("error in unum_openPattern(): %s\n", myErrorName(status) );
     }
     else
         log_verbose("Pass: unum_openPattern() works fine\n");
@@ -881,9 +881,9 @@ free(result);
             log_err("File %s, Line %d, (expected, acutal) =  (\"%s\", \"%s\")\n",
                     __FILE__, __LINE__, numFormatted, desta);
         }
-        if (strlen(numFormatted) != resultSize) {
+        if ((int32_t)strlen(numFormatted) != resultSize) {
             log_err("File %s, Line %d, (expected, actual) = (%d, %d)\n",
-                     __FILE__, __LINE__, strlen(numFormatted), resultSize);
+                     __FILE__, __LINE__, (int32_t)strlen(numFormatted), resultSize);
         }
 
         /* Format with a FieldPosition parameter */
@@ -922,9 +922,9 @@ free(result);
             log_verbose("File %s, Line %d, got expected = \"%s\"\n",
                     __FILE__, __LINE__, desta);
         }
-        if (strlen(parseExpected) != resultSize) {
+        if ((int32_t)strlen(parseExpected) != resultSize) {
             log_err("File %s, Line %d, (expected, actual) = (%d, %d)\n",
-                    __FILE__, __LINE__, strlen(parseExpected), resultSize);
+                    __FILE__, __LINE__, (int32_t)strlen(parseExpected), resultSize);
         }
 
         /* Parse with a parsePos parameter */
@@ -944,9 +944,9 @@ free(result);
             log_verbose("File %s, Line %d, got expected = \"%s\"\n",
                     __FILE__, __LINE__, desta);
         }
-        if (strlen(numFormatted) != parsePos) {
+        if ((int32_t)strlen(numFormatted) != parsePos) {
             log_err("File %s, Line %d, parsePos (expected, actual) = (\"%d\", \"%d\")\n",
-                    __FILE__, __LINE__, strlen(parseExpected), parsePos);
+                    __FILE__, __LINE__, (int32_t)strlen(parseExpected), parsePos);
         }
 
         unum_close(fmt);
@@ -1323,7 +1323,7 @@ static void TestNumberFormatPadding()
     pattern=unum_open(UNUM_IGNORE,temp1, u_strlen(temp1), "en_US",NULL, &status);
     if(U_FAILURE(status))
     {
-        log_err_status(status, "error in padding unum_openPattern(%s): %s\n", temp1, myErrorName(status) );;
+        log_err_status(status, "error in padding unum_openPattern(%s): %s\n", temp1, myErrorName(status) );
     }
     else {
         log_verbose("Pass: padding unum_openPattern() works fine\n");
@@ -1625,7 +1625,7 @@ static void test_fmt(UNumberFormat* fmt, UBool isDecimal) {
             /* set the default ruleset to the first one found, and retry */
 
             if (len > 0) {
-                for (i = 0; i < len && temp[i] != ';'; ++i){};
+                for (i = 0; i < len && temp[i] != ';'; ++i){}
                 if (i < len) {
                     buffer[i] = 0;
                     unum_setTextAttribute(fmt, UNUM_DEFAULT_RULESET, buffer, -1, &status);
@@ -1836,6 +1836,7 @@ static void TestRBNFRounding() {
     }
     len = unum_formatDouble(fmt, 10.123456789, fmtbuf, FORMAT_BUF_CAPACITY, NULL, &status);
     U_ASSERT(len < FORMAT_BUF_CAPACITY);
+    (void)len;
     if (U_FAILURE(status)) {
         log_err_status(status, "unum_formatDouble 10.123456789 failed with %s\n", u_errorName(status));
     }
@@ -3235,6 +3236,7 @@ static void TestParseCases(void) {
         status = U_ZERO_ERROR;
         decstr[0] = 0;
         dclen = unum_parseDecimal(unumDec, itemPtr->text, -1, &parsePos, decstr, 32, &status);
+        (void)dclen;
         if (status != itemPtr->decStatus || parsePos != itemPtr->decPos || uprv_strcmp(decstr,itemPtr->decString) != 0) {
             char btext[32];
             u_austrcpy(btext, itemPtr->text);
@@ -3366,6 +3368,7 @@ static void TestSetMaxFracAndRoundIncr(void) {
 
         status = U_ZERO_ERROR;
         ulen = unum_toPattern(unf, FALSE, ubuf, kUBufMax, &status);
+        (void)ulen;
         if ( U_FAILURE(status) ) {
             log_err("test %s: unum_toPattern fails with %s\n", itemPtr->descrip, u_errorName(status));
         } else if (u_strcmp(ubuf,itemPtr->expPattern)!=0) {

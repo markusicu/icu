@@ -645,6 +645,8 @@ ICULIBSUFFIX
 DATA_PACKAGING_MODE
 thepkgicudatadir
 pkgicudatadir
+U_HAVE_FUZZER
+FUZZER_TRUE
 U_HAVE_TOOLS
 TOOLS_TRUE
 U_HAVE_LAYOUTEX
@@ -797,6 +799,7 @@ enable_icuio
 enable_layoutex
 enable_layout
 enable_tools
+enable_fuzzer
 with_data_packaging
 with_library_suffix
 enable_tests
@@ -1454,6 +1457,7 @@ Optional Features:
             icu-le-hb must be installed via pkg-config. See http://harfbuzz.org
 
   --enable-tools         build ICU's tools default=yes
+  --enable-fuzzer        build ICU's fuzzer test targets default=no
   --enable-tests          build ICU tests default=yes
   --enable-samples        build ICU samples default=yes
 
@@ -7665,6 +7669,28 @@ else
   U_HAVE_TOOLS=0
 fi
 
+# Enable/disable fuzzer target tests.
+# Check whether --enable-fuzzer was given.
+if test "${enable_fuzzer+set}" = set; then :
+  enableval=$enable_fuzzer; case "${enableval}" in
+		yes) fuzzer=true ;;
+		no)  fuzzer=false ;;
+		*) as_fn_error $? "bad value ${enableval} for --enable-fuzzer" "$LINENO" 5 ;;
+		esac
+else
+  fuzzer=false
+fi
+
+
+
+if test "$fuzzer" = true; then
+  FUZZER_TRUE=
+  U_HAVE_FUZZER=1
+else
+  FUZZER_TRUE='#'
+  U_HAVE_FUZZER=0
+fi
+
 
 # Check whether --with-data-packaging was given.
 if test "${with_data_packaging+set}" = set; then :
@@ -7863,6 +7889,7 @@ fi
 
 if test "${CXX}" = "clang++"; then
    CLANGCXXFLAGS="-Qunused-arguments -Wno-parentheses-equality"
+   LIBCXXFLAGS="$LIBCXXFLAGS -Wglobal-constructors"
 else
    CLANGCXXFLAGS=""
 fi
@@ -7883,7 +7910,7 @@ echo "CXXFLAGS=$CXXFLAGS"
 
 
 # output the Makefiles
-ac_config_files="$ac_config_files icudefs.mk Makefile data/pkgdataMakefile config/Makefile.inc config/icu.pc config/pkgdataMakefile data/Makefile stubdata/Makefile common/Makefile i18n/Makefile layoutex/Makefile io/Makefile extra/Makefile extra/uconv/Makefile extra/uconv/pkgdataMakefile extra/scrptrun/Makefile tools/Makefile tools/ctestfw/Makefile tools/toolutil/Makefile tools/makeconv/Makefile tools/genrb/Makefile tools/genccode/Makefile tools/gencmn/Makefile tools/gencnval/Makefile tools/gendict/Makefile tools/gentest/Makefile tools/gennorm2/Makefile tools/genbrk/Makefile tools/gensprep/Makefile tools/icuinfo/Makefile tools/icupkg/Makefile tools/icuswap/Makefile tools/pkgdata/Makefile tools/tzcode/Makefile tools/gencfu/Makefile tools/escapesrc/Makefile test/Makefile test/compat/Makefile test/testdata/Makefile test/testdata/pkgdataMakefile test/hdrtst/Makefile test/intltest/Makefile test/cintltst/Makefile test/iotest/Makefile test/letest/Makefile test/perf/Makefile test/perf/collationperf/Makefile test/perf/collperf/Makefile test/perf/collperf2/Makefile test/perf/dicttrieperf/Makefile test/perf/ubrkperf/Makefile test/perf/charperf/Makefile test/perf/convperf/Makefile test/perf/normperf/Makefile test/perf/DateFmtPerf/Makefile test/perf/howExpensiveIs/Makefile test/perf/strsrchperf/Makefile test/perf/unisetperf/Makefile test/perf/usetperf/Makefile test/perf/ustrperf/Makefile test/perf/utfperf/Makefile test/perf/utrie2perf/Makefile test/perf/leperf/Makefile samples/Makefile samples/date/Makefile samples/cal/Makefile samples/layout/Makefile"
+ac_config_files="$ac_config_files icudefs.mk Makefile data/pkgdataMakefile config/Makefile.inc config/icu.pc config/pkgdataMakefile data/Makefile stubdata/Makefile common/Makefile i18n/Makefile layoutex/Makefile io/Makefile extra/Makefile extra/uconv/Makefile extra/uconv/pkgdataMakefile extra/scrptrun/Makefile tools/Makefile tools/ctestfw/Makefile tools/toolutil/Makefile tools/makeconv/Makefile tools/genrb/Makefile tools/genccode/Makefile tools/gencmn/Makefile tools/gencnval/Makefile tools/gendict/Makefile tools/gentest/Makefile tools/gennorm2/Makefile tools/genbrk/Makefile tools/gensprep/Makefile tools/icuinfo/Makefile tools/icupkg/Makefile tools/icuswap/Makefile tools/pkgdata/Makefile tools/tzcode/Makefile tools/gencfu/Makefile tools/escapesrc/Makefile test/Makefile test/compat/Makefile test/testdata/Makefile test/testdata/pkgdataMakefile test/hdrtst/Makefile test/intltest/Makefile test/cintltst/Makefile test/iotest/Makefile test/letest/Makefile test/perf/Makefile test/perf/collationperf/Makefile test/perf/collperf/Makefile test/perf/collperf2/Makefile test/perf/dicttrieperf/Makefile test/perf/ubrkperf/Makefile test/perf/charperf/Makefile test/perf/convperf/Makefile test/perf/normperf/Makefile test/perf/DateFmtPerf/Makefile test/perf/howExpensiveIs/Makefile test/perf/strsrchperf/Makefile test/perf/unisetperf/Makefile test/perf/usetperf/Makefile test/perf/ustrperf/Makefile test/perf/utfperf/Makefile test/perf/utrie2perf/Makefile test/perf/leperf/Makefile test/fuzzer/Makefile samples/Makefile samples/date/Makefile samples/cal/Makefile samples/layout/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -8656,6 +8683,7 @@ do
     "test/perf/utfperf/Makefile") CONFIG_FILES="$CONFIG_FILES test/perf/utfperf/Makefile" ;;
     "test/perf/utrie2perf/Makefile") CONFIG_FILES="$CONFIG_FILES test/perf/utrie2perf/Makefile" ;;
     "test/perf/leperf/Makefile") CONFIG_FILES="$CONFIG_FILES test/perf/leperf/Makefile" ;;
+    "test/fuzzer/Makefile") CONFIG_FILES="$CONFIG_FILES test/fuzzer/Makefile" ;;
     "samples/Makefile") CONFIG_FILES="$CONFIG_FILES samples/Makefile" ;;
     "samples/date/Makefile") CONFIG_FILES="$CONFIG_FILES samples/date/Makefile" ;;
     "samples/cal/Makefile") CONFIG_FILES="$CONFIG_FILES samples/cal/Makefile" ;;

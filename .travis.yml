@@ -25,6 +25,11 @@ matrix:
 
     - name: "j"
       language: java
+      addons:
+        apt:
+          packages:
+            - ant
+            - ant-optional
       env:      BUILD=ICU4J
       before_script:
         - cd icu4j
@@ -45,13 +50,14 @@ matrix:
     # Invokes test/hdrtst to check public headers compliance.
 
     - name: "c: linux gcc"
+      dist:     xenial
       language: cpp
       compiler: gcc
       env:      PREFIX=/tmp/icu-prefix
       before_script:
         - mkdir build
         - cd build
-        - ../icu4c/source/runConfigureICU --enable-debug --disable-release Linux --prefix="${PREFIX}"
+        - ../icu4c/source/runConfigureICU --enable-debug --disable-release Linux --prefix="${PREFIX}" --enable-tracing
         - make -j2
       script:
         - make -j2 check
@@ -61,6 +67,7 @@ matrix:
 
     # clang release build with some options to enforce useful constraints.
     - name: "c: linux clang"
+      dist:     xenial
       language: cpp
       env:
         - CPPFLAGS="-DU_NO_DEFAULT_INCLUDE_UTF_HEADERS=1"
@@ -93,19 +100,12 @@ matrix:
         - CPPFLAGS="-fsanitize=address"
         - LDFLAGS="-fsanitize=address"
       os:       linux
-      dist:     trusty
+      dist:     xenial
       sudo:     true
       compiler: clang
-      addons:
-          apt:
-              update: true
-              sources:
-                  - llvm-toolchain-trusty-5.0
-              packages:
-                  - clang-5.0
       before_script:
         - cd icu4c/source
-        - ./runConfigureICU --enable-debug --disable-release Linux --disable-renaming
+        - ./runConfigureICU --enable-debug --disable-release Linux --disable-renaming --enable-tracing
         - make -j2
       script:
         - make -j2 check
@@ -120,22 +120,15 @@ matrix:
           - CPPFLAGS="-fsanitize=thread"
           - LDFLAGS=-fsanitize=thread
       os:       linux
-      dist:     trusty
+      dist:     xenial
       sudo:     true
       compiler: clang
-      addons:
-          apt:
-              update: true
-              sources:
-                  - llvm-toolchain-trusty-5.0
-              packages:
-                  - clang-5.0
       script:
-          - cd icu4c/source &&
-            ./runConfigureICU --enable-debug --disable-release Linux --disable-renaming &&
-            make -j2  &&
-            make -j2 -C test &&
-            make -j2 -C test/intltest check
+          - cd icu4c/source
+          - ./runConfigureICU --enable-debug --disable-release Linux --disable-renaming
+          - make -j2
+          - make -j2 -C test
+          - make -j2 -C test/intltest check
 
     # copyright scan / future linter
     - name: "lint"

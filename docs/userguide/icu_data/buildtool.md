@@ -45,11 +45,14 @@ Unix or when building the data package on Windows.  For example:
 
     ICU_DATA_FILTER_FILE=filters.json path/to/icu4c/source/runConfigureICU Linux
 
-The ICU Data Build Tool will work out of the box with a default Python
-installation.  In order to use Hjson syntax, the `hjson` pip module must be
-installed on your system.  You should also consider installing the
-`jsonschema` module to print messages when errors are found in your config
-file.
+You must have the data sources in order to use the ICU Data Build Tool.
+Check for the file icu4c/source/data/locales/root.txt. If that file is
+missing, you need to download "icu4c-*-data.zip" and replace the contents of
+icu4c/source/data with the data directory from the zip file.
+
+In order to use Hjson syntax, the `hjson` pip module must be installed on
+your system.  You should also consider installing the `jsonschema` module to
+print messages when errors are found in your config file.
 
     $ pip3 install --user hjson jsonschema
 
@@ -204,10 +207,47 @@ summarizes the ICU data files and their corresponding features and categories:
 | Units | `"unit_tree"` | unit/\*.txt | **1.7 MiB** |
 | **OTHER** | `"cnvalias"` <br/> `"misc"` <br/> `"locales_tree"` | mappings/convrtrs.txt <br/> misc/dayPeriods.txt <br/> misc/genderList.txt <br/> misc/numberingSystems.txt <br/> misc/supplementalData.txt <br/> locales/\*.txt | 63 KiB <br/> 19 KiB <br/> 0.5 KiB <br/> 5.6 KiB <br/> 228 KiB <br/> **2.4 MiB** |
 
+#### Additive and Subtractive Modes
+
+The ICU Data Build Tool allows two strategies for selecting features:
+*additive* mode and *subtractive* mode.
+
+The default is to use subtractive mode. This means that all ICU data is
+included, and your configurations can remove or change data from that baseline.
+Additive mode means that you start with an *empty* ICU data file, and you must
+explicitly add the data required for your application.
+
+There are two concrete differences between additive and subtractive mode:
+
+|                         | Additive    | Subtractive |
+|-------------------------|-------------|-------------|
+| Default Feature Filter  | `"exclude"` | `"include"` |
+| Default Resource Filter | `"-/*"`     | `"+/*"`     |
+
+To enable additive mode, add the following setting to your filter file:
+
+    strategy: "additive"
+
 #### Filter Types
 
 You may list *filters* for each category in the *featureFilters* section of
 your config file.  What follows are examples of the possible types of filters.
+
+##### Inclusion Filter
+
+To include a category, use the string `"include"` as your filter.
+
+    featureFilters: {
+      locales_tree: include
+    }
+
+If the category is a locale tree (ends with `_tree`), the inclusion filter
+resolves to the `localeFilter`; for more information, see the section
+"Locale-Tree Categories." Otherwise, the inclusion filter causes all files in
+the category to be included.
+
+**NOTE:** When subtractive mode is used (default), all categories implicitly
+start with `"include"` as their filter.
 
 ##### Exclusion Filter
 
@@ -219,6 +259,15 @@ exclude all confusables data:
         filterType: exclude
       }
     }
+
+Since ICU 65, you can also write simply:
+
+    featureFilters: {
+      confusables: exclude
+    }
+
+**NOTE:** When additive mode is used, all categories implicitly start with
+`"exclude"` as their filter.
 
 ##### File Name Filter
 
@@ -354,6 +403,9 @@ Conceptually, the rules are applied from top to bottom.  First, all data for
 all three styes of units are removed, and then the short length units are
 added back.
 
+**NOTE:** In subtractive mode, resource paths are *included* by default. In
+additive mode, resource paths are *excluded* by default.
+
 #### Wildcard Character
 
 You can use the wildcard character (`*`) to match a piece of the resource
@@ -461,12 +513,17 @@ from the parent locale:
 
 **Run Python directly:** If you do not want to wait for ./runConfigureICU to
 finish, you can directly re-generate the rules using your filter file with the
-following command line run from *iuc4c/source/data*.
+following command line run from *iuc4c/source*.
 
-    $ python3 -m buildtool --mode=gnumake --seqmode=parallel --filter_file=filters.json > rules.mk
+    $ PYTHONPATH=python python3 -m icutools.databuilder \
+      --mode=gnumake --src_dir=data > data/rules.mk
 
 **Install jsonschema:** Install the `jsonschema` pip package to get warnings
 about problems with your filter file.
+
+**See what data is being used:** ICU is instrumented to allow you to trace
+which resources are used at runtime. This can help you determine what data you
+need to include. For more information, see [tracing.md](tracing.md).
 
 **Inspect data/rules.mk:** The Python script outputs the file *rules.mk*
 inside *iuc4c/source/data*. To see what is going to get built, you can inspect
@@ -503,6 +560,10 @@ back to a txt file, you can run this command from *icu4c/source*:
 
 That will produce a file *en.txt* in your current directory, which is the
 original *data/unit/en.txt* but after resource filters were applied.
+
+*Tip:* derb expects your res files to be rooted in a directory named
+`icudt64l` (corresponding to your current ICU version and endianness). If your
+files are not in such a directory, derb fails with U_MISSING_RESOURCE_ERROR.
 
 **Put complex rules first** and **use the wildcard `*` sparingly:** The order
 of the filter rules matters a great deal in how effective your data size
@@ -579,10 +640,10 @@ developed, there are there are additional use cases.
 ### Running Data Build without Configure/Make
 
 You can build the dat file outside of the ICU build system by directly
-invoking the Python buildtool.  Run the following command to see the help text
-for the CLI tool:
+invoking the Python icutools.databuilder.  Run the following command to see the
+help text for the CLI tool:
 
-    $ PYTHONPATH=path/to/icu4c/source/data python3 -m buildtool --help
+    $ PYTHONPATH=path/to/icu4c/source/python python3 -m icutools.databuilder --help
 
 ### Collation UCAData
 
@@ -610,6 +671,21 @@ implicithan version, put the following setting in your *filters.json* file:
 
     {
       "collationUCAData": "implicithan"
+    }
+
+### Disable Pool Bundle
+
+By default, ICU uses a "pool bundle" to store strings shared between locales.
+This saves space and is recommended for most users. However, when developing
+a system where locale data files may be added "on the fly" and not included in
+the original ICU distribution, those additional data files may not be able to
+use a pool bundle due to name collisions with the existing pool bundle.
+
+To disable the pool bundle in the current ICU build, put the following setting
+in your *filters.json* file:
+
+    {
+      "usePoolBundle": false
     }
 
 ### File Substitution

@@ -4,6 +4,7 @@ __pycache__/
 
 # Specific file name ignores
 /.git
+.vscode
 icu4c/bin
 icu4c/bin32uwp
 icu4c/bin64
@@ -49,7 +50,6 @@ icu4c/source/common/icucfg.h
 icu4c/source/common/libicu*.*
 icu4c/source/common/release
 icu4c/source/common/svchook.mk
-icu4c/source/common/unicode/platform.h
 icu4c/source/common/x64
 icu4c/source/common/x86
 icu4c/source/config.cache
@@ -218,7 +218,6 @@ icu4c/source/samples/coll/x64
 icu4c/source/samples/coll/x86
 icu4c/source/samples/csdet/*.vcxproj.user
 icu4c/source/samples/csdet/Debug
-icu4c/source/samples/csdet/Makefile
 icu4c/source/samples/csdet/csdet
 icu4c/source/samples/csdet/csdet.exe
 icu4c/source/samples/csdet/csdet.out
@@ -429,9 +428,11 @@ icu4c/source/test/cintltst/release
 icu4c/source/test/cintltst/x64
 icu4c/source/test/cintltst/x86
 icu4c/source/test/compat/Makefile
-icu4c/source/test/hdrtst/*.[co]
+icu4c/source/test/fuzzer/Makefile
+icu4c/source/test/fuzzer/*.d
+icu4c/source/test/fuzzer/*.o
 icu4c/source/test/hdrtst/Makefile
-icu4c/source/test/hdrtst/cfiles.txt
+icu4c/source/test/hdrtst/ht_*
 icu4c/source/test/intltest/*.d
 icu4c/source/test/intltest/*.o
 icu4c/source/test/intltest/*.plg
@@ -837,6 +838,7 @@ icu4c/source/tools/icuinfo/Makefile.local
 icu4c/source/tools/icuinfo/icuinfo
 icu4c/source/tools/icuinfo/icuinfo.exe
 icu4c/source/tools/icuinfo/icuplugins*.txt
+!icu4c/source/tools/icuinfo/icuplugins_windows_sample.txt
 icu4c/source/tools/icuinfo/x64
 icu4c/source/tools/icuinfo/x86
 icu4c/source/tools/icupkg/*.8

@@ -1049,6 +1049,7 @@ static void writeStringInU8(FILE *out, const UnicodeString &s) {
         int32_t  destIdx = 0;
         U8_APPEND(bufForOneChar, destIdx, (int32_t)sizeof(bufForOneChar), c, isError);
         U_ASSERT(!isError);
+        (void)isError;
         fwrite(bufForOneChar, 1, destIdx, out);
     }
 }
@@ -1281,7 +1282,7 @@ class LegalIndic :public Legal{
 public:
     LegalIndic();
     virtual UBool is(const UnicodeString& sourceString) const;
-    virtual ~LegalIndic() {};
+    virtual ~LegalIndic() {}
 };
 UBool LegalIndic::is(const UnicodeString& sourceString) const{
     int cp=sourceString.charAt(0);

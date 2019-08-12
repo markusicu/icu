@@ -255,8 +255,8 @@ void addLocaleTest(TestNode** root)
     TESTCASE(TestLikelySubtags);
     TESTCASE(TestToLanguageTag);
     TESTCASE(TestBug20132);
+    TESTCASE(TestBug20149);
     TESTCASE(TestForLanguageTag);
-    TESTCASE(TestInvalidLanguageTag);
     TESTCASE(TestLangAndRegionCanonicalize);
     TESTCASE(TestTrailingNull);
     TESTCASE(TestUnicodeDefines);
@@ -1783,6 +1783,7 @@ static void TestKeywordVariants(void)
 
         status = U_ZERO_ERROR;
         resultLen = uloc_getName(testCases[i].localeID, buffer, 256, &status);
+        (void)resultLen;
         U_ASSERT(resultLen < 256);
         if (U_SUCCESS(status)) {
             if (testCases[i].expectedLocaleID == 0) {
@@ -2003,7 +2004,7 @@ static void TestKeywordSet(void)
           resultLen = uloc_getKeywordValue(kwSetTestCases[i].x, kwSetTestCases[i].k, buffer, 1023, &status);
           if(U_FAILURE(status)) {
             log_err("Err on test case %d for getKeywordValue: got error %s\n", i, u_errorName(status));
-          } else if (resultLen != uprv_strlen(kwSetTestCases[i].v) || uprv_strcmp(buffer, kwSetTestCases[i].v) != 0) {
+          } else if (resultLen != (int32_t)uprv_strlen(kwSetTestCases[i].v) || uprv_strcmp(buffer, kwSetTestCases[i].v) != 0) {
             log_err("FAIL: #%d getKeywordValue: got %s (%d) expected %s (%d)\n", i, buffer, resultLen,
                     kwSetTestCases[i].v, uprv_strlen(kwSetTestCases[i].v));
           }
@@ -3396,7 +3397,7 @@ static void TestGetLocaleForLCID() {
             continue;
         }
         
-        if (length != uprv_strlen(temp2)) {
+        if (length != (int32_t)uprv_strlen(temp2)) {
             log_err("  returned length %d not correct for uloc_getLocaleForLCID(%#04x), expected %d\n", length, lcid, uprv_strlen(temp2));
         }
         
@@ -6200,35 +6201,6 @@ static void TestForLanguageTag(void) {
     }
 }
 
-/* See https://unicode-org.atlassian.net/browse/ICU-20149 .
- * Depending on the resolution of that bug, this test may have
- * to be revised.
- */
-static void TestInvalidLanguageTag(void) {
-    static const char* invalid_lang_tags[] = {
-        "zh-u-foo-foo-co-pinyin", /* duplicate attribute in U extension */
-        "zh-cmn-hans-u-foo-foo-co-pinyin", /* duplicate attribute in U extension */
-#if 0
-        /*
-         * These do not lead to an error. Instead, parsing stops at the 1st
-         * invalid subtag.
-         */
-        "de-DE-1901-1901", /* duplicate variant */
-        "en-a-bbb-a-ccc", /* duplicate extension */
-#endif
-        NULL
-    };
-    char locale[256];
-    for (const char** tag = invalid_lang_tags; *tag != NULL; tag++) {
-        UErrorCode status = U_ZERO_ERROR;
-        uloc_forLanguageTag(*tag, locale, sizeof(locale), NULL, &status);
-        if (status != U_ILLEGAL_ARGUMENT_ERROR) {
-            log_err("Error returned by uloc_forLanguageTag for input language tag [%s] : %s - expected error:  %s\n",
-                    *tag, u_errorName(status), u_errorName(U_ILLEGAL_ARGUMENT_ERROR));
-        }
-    }
-}
-
 static const struct {
     const char  *input;
     const char  *canonical;
@@ -6556,5 +6528,20 @@ static void TestBug20370() {
     uint32_t lcid = uloc_getLCID(localeID);
     if (lcid != 0) {
         log_err("FAIL: Expected LCID value of 0 for invalid localeID input.");
+    }
+}
+
+// Test case for ICU-20149
+// Handle the duplicate U extension attribute
+static void TestBug20149() {
+    const char *localeID = "zh-u-foo-foo-co-pinyin";
+    char locale[256];
+    UErrorCode status = U_ZERO_ERROR;
+    int32_t parsedLen;
+    locale[0] = '\0';
+    uloc_forLanguageTag(localeID, locale, sizeof(locale), &parsedLen, &status);
+    if (U_FAILURE(status) ||
+        0 !=strcmp("zh@attribute=foo;collation=pinyin", locale)) {
+        log_err("ERROR: in uloc_forLanguageTag %s return %s\n", myErrorName(status), locale);
     }
 }

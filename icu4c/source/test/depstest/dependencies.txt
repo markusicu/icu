@@ -90,7 +90,7 @@ group: system_locale
 group: stdio_input
     fopen fclose fgets fread fseek ftell rewind feof fileno
     # Additional symbols in an optimized build.
-    __fgets_chk __fread_chk
+    __fgets_chk __fread_chk fread_unlocked
 
 group: stdio_output
     fflush fwrite
@@ -671,11 +671,12 @@ group: lsr
     platform
 
 group: udata
-    udata.o ucmndata.o udatamem.o
+    udata.o ucmndata.o udatamem.o restrace.o
     umapfile.o
   deps
     uhash platform stubdata
     file_io mmap_functions
+    icu_utility
 
 group: unifiedcache
     unifiedcache.o
@@ -874,7 +875,7 @@ library: i18n
 group: region
     region.o uregion.o
   deps
-    formatting  # Temporary, TODO: Ticket #9982 class Region should use low-level ASCII-integer functions, and probably be moved to the common library.
+    icu_utility
     resourcebundle
     uvector uclean_i18n
 
@@ -1043,6 +1044,7 @@ group: formatting
     trigonometry  # for astro.o
     sharedbreakiterator # for reldatefmt.o
     uclean_i18n
+    region
 
 group: sharedbreakiterator
     sharedbreakiterator.o

@@ -23,6 +23,9 @@
  */
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/stringpiece.h"
 #include "unicode/uobject.h"
 #include "unicode/ustringtrie.h"
@@ -556,5 +559,7 @@ private:
 };
 
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif  // __BYTESTRIE_H__
