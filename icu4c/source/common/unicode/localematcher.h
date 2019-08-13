@@ -244,6 +244,9 @@ public:
                 desiredIndex(desIndex), supportedIndex(suppIndex),
                 desiredIsOwned(owned) {}
 
+        Result(const Result &other) = delete;
+        Result &operator=(const Result &other) = delete;
+
         const Locale *desiredLocale;
         const Locale *supportedLocale;
         int32_t desiredIndex;
@@ -435,6 +438,9 @@ public:
 
     private:
         friend class LocaleMatcher;
+
+        Builder(const Builder &other) = delete;
+        Builder &operator=(const Builder &other) = delete;
 
         void clearSupportedLocales();
         bool ensureSupportedLocaleVector();

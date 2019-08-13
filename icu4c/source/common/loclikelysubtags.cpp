@@ -32,13 +32,13 @@ constexpr char PSEUDO_BIDI_PREFIX = '+';  // -XB, -PSBIDI
 constexpr char PSEUDO_CRACKED_PREFIX = ',';  // -XC, -PSCRACK
 
 /**
- * Stores NUL-terminated char * strings with duplicate elimination.
- * Pointers to old strings may change when a new string is added.
+ * Stores NUL-terminated strings with duplicate elimination.
+ * Checks for unique UTF-16 string pointers and converts to invariant characters.
  */
 class UniqueCharStrings {
 public:
     UniqueCharStrings(UErrorCode &errorCode) : strings(nullptr) {
-        uhash_init(&map, uhash_hashChars, uhash_compareChars, uhash_compareLong, &errorCode);
+        uhash_init(&map, uhash_hashUChars, uhash_compareUChars, uhash_compareLong, &errorCode);
         if (U_FAILURE(errorCode)) { return; }
         strings = new CharString();
         if (strings == nullptr) {
@@ -59,35 +59,41 @@ public:
 
     /** Adds a string and returns a unique number for it. */
     int32_t add(const UnicodeString &s, UErrorCode &errorCode) {
-        int32_t length = strings->length();
+        if (U_FAILURE(errorCode)) { return 0; }
+        if (isFrozen) {
+            errorCode = U_NO_WRITE_PERMISSION;
+            return 0;
+        }
+        // The string points into the resource bundle.
+        const char16_t *p = s.getBuffer();
+        int32_t oldIndex = uhash_geti(&map, p);
+        if (oldIndex != 0) {  // found duplicate
+            return oldIndex;
+        }
         // Explicit NUL terminator for the previous string.
         // The strings object is also terminated with one implicit NUL.
         strings->append(0, errorCode);
-        // Append the new string at the end. If it is a duplicate, remove it again.
+        int32_t newIndex = strings->length();
         strings->appendInvariantChars(s, errorCode);
-        if (U_FAILURE(errorCode)) { return 0; }
-        int32_t newIndex = length + 1;  // start of the string after the NUL
-        char *t = strings->data() + newIndex;
-        int32_t oldIndex = uhash_geti(&map, t);
-        if (oldIndex != 0) {  // found duplicate
-            strings->truncate(length);
-            return oldIndex;
-        }
-        uhash_puti(&map, t, newIndex, &errorCode);
+        uhash_puti(&map, const_cast<char16_t *>(p), newIndex, &errorCode);
         return newIndex;
     }
 
+    void freeze() { isFrozen = true; }
+
     /**
-     * Returns a string pointer for its unique number. Otherwise nullptr.
-     * The pointer may change after add()ing another string.
+     * Returns a string pointer for its unique number, if this object is frozen.
+     * Otherwise nullptr.
      */
     const char *get(int32_t i) const {
-        return i > 0 ? strings->data() + i : nullptr;
+        U_ASSERT(isFrozen);
+        return isFrozen && i > 0 ? strings->data() + i : nullptr;
     }
 
 private:
     UHashtable map;
     CharString *strings;
+    bool isFrozen = false;
 };
 
 }  // namespace
@@ -150,6 +156,70 @@ struct XLikelySubtagsData {
             return;
         }
 
+        if (!likelyTable.findValue("trie", value)) {
+            errorCode = U_MISSING_RESOURCE_ERROR;
+            return;
+        }
+        int32_t length;
+        trieBytes = value.getBinary(length, errorCode);
+        if (U_FAILURE(errorCode)) { return; }
+
+        // Also read distance/matcher data if available,
+        // to open & keep only one resource bundle pointer
+        // and to use one single UniqueCharStrings.
+        UErrorCode matchErrorCode = U_ZERO_ERROR;
+        ures_getValueWithFallback(langInfoBundle, "match", stackTempBundle.getAlias(),
+                                  value, matchErrorCode);
+        LocalMemory<int32_t> partitionIndexes, paradigmSubtagIndexes;
+        int32_t partitionsLength = 0, paradigmSubtagsLength = 0;
+        if (U_SUCCESS(matchErrorCode)) {
+            ResourceTable matchTable = value.getTable(errorCode);
+            if (U_FAILURE(errorCode)) { return; }
+
+            if (matchTable.findValue("trie", value)) {
+                distanceTrieBytes = value.getBinary(length, errorCode);
+                if (U_FAILURE(errorCode)) { return; }
+            }
+
+            if (matchTable.findValue("regionToPartitions", value)) {
+                regionToPartitions = value.getBinary(length, errorCode);
+                if (U_FAILURE(errorCode)) { return; }
+                if (length < LSR::REGION_INDEX_LIMIT) {
+                    errorCode = U_INVALID_FORMAT_ERROR;
+                    return;
+                }
+            }
+
+            if (!readStrings(matchTable, "partitions", value,
+                             partitionIndexes, partitionsLength, errorCode) ||
+                    !readStrings(matchTable, "paradigms", value,
+                                 paradigmSubtagIndexes, paradigmSubtagsLength, errorCode)) {
+                return;
+            }
+            if ((paradigmSubtagsLength % 3) != 0) {
+                errorCode = U_INVALID_FORMAT_ERROR;
+                return;
+            }
+
+            if (matchTable.findValue("distances", value)) {
+                distances = value.getIntVector(length, errorCode);
+                if (U_FAILURE(errorCode)) { return; }
+                if (length < 4) {  // LocaleDistance IX_LIMIT
+                    errorCode = U_INVALID_FORMAT_ERROR;
+                    return;
+                }
+            }
+        } else if (matchErrorCode == U_MISSING_RESOURCE_ERROR) {
+            // ok for likely subtags
+        } else {  // error other than missing resource
+            errorCode = matchErrorCode;
+            return;
+        }
+
+        // Fetch & store invariant-character versions of strings
+        // only after we have collected and de-duplicated all of them.
+        strings.freeze();
+
         languageAliases = CharStringMap(languagesLength / 2, errorCode);
         for (int32_t i = 0; i < languagesLength; i += 2) {
             languageAliases.put(strings.get(languageIndexes[i]),
@@ -163,14 +233,6 @@ struct XLikelySubtagsData {
         }
         if (U_FAILURE(errorCode)) { return; }
 
-        if (!likelyTable.findValue("trie", value)) {
-            errorCode = U_MISSING_RESOURCE_ERROR;
-            return;
-        }
-        int32_t length;
-        trieBytes = value.getBinary(length, errorCode);
-        if (U_FAILURE(errorCode)) { return; }
-
         lsrsLength = lsrSubtagsLength / 3;
         lsrs = new LSR[lsrsLength];
         if (lsrs == nullptr) {
@@ -181,47 +243,6 @@ struct XLikelySubtagsData {
             lsrs[j] = LSR(strings.get(lsrSubtagIndexes[i]),
                           strings.get(lsrSubtagIndexes[i + 1]),
                           strings.get(lsrSubtagIndexes[i + 2]));
-        }
-
-        // Also read distance/matcher data if available,
-        // to open & keep only one resource bundle pointer
-        // and to use one single UniqueCharStrings.
-        UErrorCode matchErrorCode = U_ZERO_ERROR;
-        ures_getValueWithFallback(langInfoBundle, "match", stackTempBundle.getAlias(),
-                                  value, matchErrorCode);
-        if (matchErrorCode == U_MISSING_RESOURCE_ERROR) { return; }  // ok for likely subtags
-        if (U_FAILURE(matchErrorCode)) {  // error other than missing resource
-            errorCode = matchErrorCode;
-            return;
-        }
-        ResourceTable matchTable = value.getTable(errorCode);
-        if (U_FAILURE(errorCode)) { return; }
-
-        if (matchTable.findValue("trie", value)) {
-            distanceTrieBytes = value.getBinary(length, errorCode);
-            if (U_FAILURE(errorCode)) { return; }
-        }
-
-        if (matchTable.findValue("regionToPartitions", value)) {
-            regionToPartitions = value.getBinary(length, errorCode);
-            if (U_FAILURE(errorCode)) { return; }
-            if (length < LSR::REGION_INDEX_LIMIT) {
-                errorCode = U_INVALID_FORMAT_ERROR;
-                return;
-            }
-        }
-
-        LocalMemory<int32_t> partitionIndexes, paradigmSubtagIndexes;
-        int32_t partitionsLength = 0, paradigmSubtagsLength = 0;
-        if (!readStrings(matchTable, "partitions", value,
-                         partitionIndexes, partitionsLength, errorCode) ||
-                !readStrings(matchTable, "paradigms", value,
-                             paradigmSubtagIndexes, paradigmSubtagsLength, errorCode)) {
-            return;
-        }
-        if ((paradigmSubtagsLength % 3) != 0) {
-            errorCode = U_INVALID_FORMAT_ERROR;
-            return;
         }
 
         if (partitionsLength > 0) {
@@ -247,15 +268,6 @@ struct XLikelySubtagsData {
                 paradigms[j] = LSR(strings.get(paradigmSubtagIndexes[i]),
                                    strings.get(paradigmSubtagIndexes[i + 1]),
                                    strings.get(paradigmSubtagIndexes[i + 2]));
-            }
-        }
-
-        if (matchTable.findValue("distances", value)) {
-            distances = value.getIntVector(length, errorCode);
-            if (U_FAILURE(errorCode)) { return; }
-            if (length < 4) {  // LocaleDistance IX_LIMIT
-                errorCode = U_INVALID_FORMAT_ERROR;
-                return;
             }
         }
     }

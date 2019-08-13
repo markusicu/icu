@@ -72,6 +72,8 @@ LocaleMatcher::Result::~Result() {
 }
 
 LocaleMatcher::Result &LocaleMatcher::Result::operator=(LocaleMatcher::Result &&src) U_NOEXCEPT {
+    this->~Result();
+
     desiredLocale = src.desiredLocale;
     supportedLocale = src.supportedLocale;
     desiredIndex = src.desiredIndex;
@@ -138,6 +140,8 @@ LocaleMatcher::Builder::~Builder() {
 }
 
 LocaleMatcher::Builder &LocaleMatcher::Builder::operator=(LocaleMatcher::Builder &&src) U_NOEXCEPT {
+    this->~Builder();
+
     errorCode_ = src.errorCode_;
     supportedLocales_ = src.supportedLocales_;
     thresholdDistance_ = src.thresholdDistance_;
@@ -514,6 +518,8 @@ LocaleMatcher::~LocaleMatcher() {
 }
 
 LocaleMatcher &LocaleMatcher::operator=(LocaleMatcher &&src) U_NOEXCEPT {
+    this->~LocaleMatcher();
+
     thresholdDistance = src.thresholdDistance;
     demotionPerDesiredLocale = src.demotionPerDesiredLocale;
     favorSubtag = src.favorSubtag;
