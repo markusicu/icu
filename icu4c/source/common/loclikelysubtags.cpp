@@ -342,24 +342,21 @@ XLikelySubtags::XLikelySubtags(XLikelySubtagsData &data) :
     data.lsrs = nullptr;
 
     // Cache the result of looking up language="und" encoded as "*", and "und-Zzzz" ("**").
-    UStringTrieResult result = trie.next('*');
+    UStringTrieResult result = trie.next(u'*');
     U_ASSERT(USTRINGTRIE_HAS_NEXT(result));
     trieUndState = trie.getState64();
-    result = trie.next('*');
+    result = trie.next(u'*');
     U_ASSERT(USTRINGTRIE_HAS_NEXT(result));
     trieUndZzzzState = trie.getState64();
-    result = trie.next('*');
+    result = trie.next(u'*');
     U_ASSERT(USTRINGTRIE_HAS_VALUE(result));
     defaultLsrIndex = trie.getValue();
     trie.reset();
 
-    // In EBCDIC, a-z are not contiguous.
-    static const char *a_z = "abcdefghijklmnopqrstuvwxyz";
-    for (int32_t i = 0; i < 26; ++i) {
-        char c = a_z[i];
+    for (char16_t c = u'a'; c <= u'z'; ++c) {
         result = trie.next(c);
         if (result == USTRINGTRIE_NO_VALUE) {
-            trieFirstLetterStates[i] = trie.getState64();
+            trieFirstLetterStates[c - u'a'] = trie.getState64();
         }
         trie.reset();
     }
