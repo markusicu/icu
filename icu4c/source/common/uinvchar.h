@@ -92,6 +92,24 @@ inline int32_t uprv_upperOrdinal(int32_t c) {
 #endif
 }
 
+// Like U_UPPER_ORDINAL(x) but for lowercase and with validation.
+// Returns 0..25 for a..z else a value outside 0..25.
+inline int32_t uprv_lowerOrdinal(int32_t c) {
+#if U_CHARSET_FAMILY==U_ASCII_FAMILY
+    return c - 'a';
+#elif U_CHARSET_FAMILY==U_EBCDIC_FAMILY
+    // EBCDIC: a-z (26 letters) is split into three ranges a-i (9 letters), j-r (9), s-z (8).
+    // https://en.wikipedia.org/wiki/EBCDIC_037#Codepage_layout
+    if (c <= 'i') { return c - 'a'; }  // a-i --> 0-8
+    if (c < 'j') { return -1; }
+    if (c <= 'r') { return c - 'j' + 9; }  // j-r --> 9..17
+    if (c < 's') { return -1; }
+    return c - 's' + 18;  // s-z --> 18..25
+#else
+#   error Unknown charset family!
+#endif
+}
+
 U_NAMESPACE_END
 
 #endif

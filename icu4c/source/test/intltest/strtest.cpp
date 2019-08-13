@@ -180,6 +180,28 @@ StringTest::TestUpperOrdinal() {
 }
 
 void
+StringTest::TestLowerOrdinal() {
+    for (int32_t i = 0;; ++i) {
+        char ic = nativeInvChars[i];
+        uint8_t ac = asciiInvChars[i];
+        int32_t expected = ac - 'a';
+        int32_t actual = uprv_lowerOrdinal(ic);
+        if (0 <= expected && expected <= 25) {
+            if (actual != expected) {
+                errln("uprv_lowerOrdinal('%c')=%d != expected %d",
+                      ic, (int)actual, (int)expected);
+            }
+        } else {
+            if (0 <= actual && actual <= 25) {
+                errln("uprv_lowerOrdinal('%c')=%d should have been outside 0..25",
+                      ic, (int)actual);
+            }
+        }
+        if (ic == 0) { break; }
+    }
+}
+
+void
 StringTest::Test_UTF8_COUNT_TRAIL_BYTES() {
 #if !U_HIDE_OBSOLETE_UTF_OLD_H
     if(UTF8_COUNT_TRAIL_BYTES(0x7F) != 0
@@ -211,6 +233,7 @@ void StringTest::runIndexedTest(int32_t index, UBool exec, const char *&name, ch
     TESTCASE_AUTO(Test_UNICODE_STRING);
     TESTCASE_AUTO(Test_UNICODE_STRING_SIMPLE);
     TESTCASE_AUTO(TestUpperOrdinal);
+    TESTCASE_AUTO(TestLowerOrdinal);
     TESTCASE_AUTO(Test_UTF8_COUNT_TRAIL_BYTES);
     TESTCASE_AUTO(TestSTLCompatibility);
     TESTCASE_AUTO(TestStringPiece);

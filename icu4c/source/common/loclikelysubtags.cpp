@@ -27,22 +27,6 @@ U_NAMESPACE_BEGIN
 
 namespace {
 
-// Like uinvchar.h U_UPPER_ORDINAL(x) but for lowercase and with validation.
-// Returns 0..25 for a..z else a value outside 0..25.
-inline int32_t lowerOrdinal(int32_t c) {
-#if U_CHARSET_FAMILY==U_ASCII_FAMILY
-    return c - 'a';
-#elif U_CHARSET_FAMILY==U_EBCDIC_FAMILY
-    if (c <= 'i') { return c - 'a'; }
-    if (c < 'j') { return -1; }
-    if (c <= 'r') { return c - 'j' + 9; }
-    if (c < 's') { return -1; }
-    return c - 's' + 18;
-#else
-#   error Unknown charset family!
-#endif
-}
-
 constexpr char PSEUDO_ACCENTS_PREFIX = '\'';  // -XA, -PSACCENT
 constexpr char PSEUDO_BIDI_PREFIX = '+';  // -XB, -PSBIDI
 constexpr char PSEUDO_CRACKED_PREFIX = ',';  // -XC, -PSCRACK
@@ -466,7 +450,7 @@ LSR XLikelySubtags::maximize(const char *language, const char *script, const cha
     int32_t value;
     // Small optimization: Array lookup for first language letter.
     int32_t c0;
-    if (0 <= (c0 = lowerOrdinal(language[0])) && c0 <= 25 &&
+    if (0 <= (c0 = uprv_lowerOrdinal(language[0])) && c0 <= 25 &&
             language[1] != 0 &&  // language.length() >= 2
             (state = trieFirstLetterStates[c0]) != 0) {
         value = trieNext(iter.resetToState64(state), language, 1);

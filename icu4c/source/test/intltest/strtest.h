@@ -40,6 +40,7 @@ private:
     void Test_UNICODE_STRING();
     void Test_UNICODE_STRING_SIMPLE();
     void TestUpperOrdinal();
+    void TestLowerOrdinal();
     void Test_UTF8_COUNT_TRAIL_BYTES();
     void TestStringPiece();
     void TestStringPieceComparisons();
