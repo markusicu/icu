@@ -8,6 +8,9 @@
 #define __LOCALEMATCHER_H__
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/locid.h"
 #include "unicode/stringpiece.h"
 #include "unicode/uobject.h"
@@ -592,4 +595,5 @@ private:
 U_NAMESPACE_END
 
 #endif  // U_HIDE_DRAFT_API
+#endif  // U_SHOW_CPLUSPLUS_API
 #endif  // __LOCALEMATCHER_H__
