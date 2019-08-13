@@ -286,6 +286,7 @@ ures_getStringByKeyWithFallback(const UResourceBundle *resB,
 
 U_CAPI void U_EXPORT2
 ures_getValueWithFallback(const UResourceBundle *bundle, const char *path,
+                          UResourceBundle *tempFillIn,
                           icu::ResourceDataValue &value, UErrorCode &errorCode);
 
 U_CAPI void U_EXPORT2

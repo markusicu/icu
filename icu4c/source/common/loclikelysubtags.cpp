@@ -121,8 +121,10 @@ struct XLikelySubtagsData {
     void load(UErrorCode &errorCode) {
         langInfoBundle = ures_openDirect(nullptr, "langInfo", &errorCode);
         if (U_FAILURE(errorCode)) { return; }
+        StackUResourceBundle stackTempBundle;
         ResourceDataValue value;
-        ures_getValueWithFallback(langInfoBundle, "likely", value, errorCode);
+        ures_getValueWithFallback(langInfoBundle, "likely", stackTempBundle.getAlias(),
+                                  value, errorCode);
         ResourceTable likelyTable = value.getTable(errorCode);
         if (U_FAILURE(errorCode)) { return; }
 
@@ -185,7 +187,8 @@ struct XLikelySubtagsData {
         // to open & keep only one resource bundle pointer
         // and to use one single UniqueCharStrings.
         UErrorCode matchErrorCode = U_ZERO_ERROR;
-        ures_getValueWithFallback(langInfoBundle, "match", value, matchErrorCode);
+        ures_getValueWithFallback(langInfoBundle, "match", stackTempBundle.getAlias(),
+                                  value, matchErrorCode);
         if (matchErrorCode == U_MISSING_RESOURCE_ERROR) { return; }  // ok for likely subtags
         if (U_FAILURE(matchErrorCode)) {  // error other than missing resource
             errorCode = matchErrorCode;

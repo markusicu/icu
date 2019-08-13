@@ -2006,21 +2006,25 @@ void getAllItemsWithFallback(
 // Alternatively, we could make it as polymorphic as in Java by
 // returning a ResourceValue pointer (possibly wrapped into a LocalPointer)
 // that the caller then owns.
+//
+// Also requires a UResourceBundle fill-in, so that the value's ResourceTracer
+// can point to a non-local bundle.
+// Without tracing, the child bundle could be a function-local object.
 U_CAPI void U_EXPORT2
 ures_getValueWithFallback(const UResourceBundle *bundle, const char *path,
+                          UResourceBundle *tempFillIn,
                           ResourceDataValue &value, UErrorCode &errorCode) {
     if (U_FAILURE(errorCode)) { return; }
     if (path == nullptr) {
         errorCode = U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
-    StackUResourceBundle stackBundle;
     const UResourceBundle *rb;
     if (*path == 0) {
         // empty path
         rb = bundle;
     } else {
-        rb = ures_getByKeyWithFallback(bundle, path, stackBundle.getAlias(), &errorCode);
+        rb = ures_getByKeyWithFallback(bundle, path, tempFillIn, &errorCode);
         if (U_FAILURE(errorCode)) {
             return;
         }

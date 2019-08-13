@@ -367,7 +367,7 @@ void LocaleMatcherTest::testResolvedLocale() {
 
 namespace {
 
-bool toInvariant(const UnicodeString &s, CharString &inv, IcuTestErrorCode &errorCode) {
+bool toInvariant(const UnicodeString &s, CharString &inv, ErrorCode &errorCode) {
     if (errorCode.isSuccess()) {
         inv.clear().appendInvariantChars(s, errorCode);
         return errorCode.isSuccess();
@@ -387,7 +387,7 @@ bool getSuffixAfterPrefix(const UnicodeString &s, int32_t limit,
 
 bool getInvariantSuffixAfterPrefix(const UnicodeString &s, int32_t limit,
                                    const UnicodeString &prefix, CharString &suffix,
-                                   IcuTestErrorCode &errorCode) {
+                                   ErrorCode &errorCode) {
     UnicodeString u_suffix;
     return getSuffixAfterPrefix(s, limit, prefix, u_suffix) &&
         toInvariant(u_suffix, suffix, errorCode);
@@ -494,8 +494,7 @@ UBool LocaleMatcherTest::dataDriven(const TestCase &test, IcuTestErrorCode &erro
         // builder.internalSetThresholdDistance(threshold);
     }
     LocaleMatcher matcher = builder.build(errorCode);
-    if (errorCode.isFailure()) {
-        errln("LocaleMatcher::Builder::build() failed");
+    if (errorCode.errIfFailureAndReset("LocaleMatcher::Builder::build()")) {
         return FALSE;
     }
 
@@ -538,7 +537,8 @@ UBool LocaleMatcherTest::dataDriven(const TestCase &test, IcuTestErrorCode &erro
         }
         if (!test.expCombined.isEmpty()) {
             if (test.expMatch.contains("-u-")) {
-                infoln("ignoring makeResolvedLocale() line %d, see ICU-20727", (int)test.lineNr);
+                logKnownIssue("20727",
+                              UnicodeString(u"ignoring makeResolvedLocale() line ") + test.lineNr);
                 return ok;
             }
             Locale expCombinedLocale("");
