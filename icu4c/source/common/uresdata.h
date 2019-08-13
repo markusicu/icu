@@ -542,7 +542,7 @@ public:
     virtual UnicodeString getStringOrFirstOfArray(UErrorCode &errorCode) const;
 
 private:
-    // TODO: If UResourceBundle.fResData becomes a pointer,
+    // TODO(ICU-20769): If UResourceBundle.fResData becomes a pointer,
     // then remove this value field again and just store a pResData pointer.
     ResourceData resData;
     Resource res;
