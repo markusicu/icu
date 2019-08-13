@@ -12,6 +12,11 @@
 #include "unicode/stringpiece.h"
 #include "unicode/uobject.h"
 
+/**
+ * \file
+ * \brief C++ API: Locale matcher: User's desired locales vs. application's supported locales.
+ */
+
 #ifndef U_HIDE_DRAFT_API
 
 /**
@@ -98,7 +103,7 @@ class XLikelySubtags;
 
 /**
  * Immutable class that picks the best match between a user's desired locales and
- * and application's supported locales.
+ * an application's supported locales.
  * Movable but not copyable.
  *
  * <p>Example:
@@ -345,7 +350,7 @@ public:
          *
          * @param begin Start of range.
          * @param end Exclusive end of range.
-         * @param conv Converter from *begin to const Locale & or compatible.
+         * @param converter Converter from *begin to const Locale & or compatible.
          * @return this Builder object
          * @draft ICU 65
          */

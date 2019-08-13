@@ -23,7 +23,7 @@ import com.ibm.icu.impl.locale.XLikelySubtags;
 
 /**
  * Immutable class that picks the best match between a user's desired locales and
- * and application's supported locales.
+ * an application's supported locales.
  *
  * <p>Example:
  * <pre>

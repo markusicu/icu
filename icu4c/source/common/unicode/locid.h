@@ -1083,7 +1083,7 @@ public:
          *
          * @param begin Start of range.
          * @param end Exclusive end of range.
-         * @param conv Converter from *begin to const Locale & or compatible.
+         * @param converter Converter from *begin to const Locale & or compatible.
          * @draft ICU 65
          */
         ConvertingIterator(Iter begin, Iter end, Conv converter) :
