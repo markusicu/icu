@@ -91,8 +91,8 @@ int32_t LSR::indexForRegion(const char *region) {
 LSR &LSR::setHashCode() {
     if (hashCode == 0) {
         hashCode =
-            (ustr_hashCharsN(language, uprv_strlen(language)) * 37 +
-            ustr_hashCharsN(script, uprv_strlen(script))) * 37 +
+            (ustr_hashCharsN(language, static_cast<int32_t>(uprv_strlen(language))) * 37 +
+            ustr_hashCharsN(script, static_cast<int32_t>(uprv_strlen(script)))) * 37 +
             regionIndex;
     }
     return *this;

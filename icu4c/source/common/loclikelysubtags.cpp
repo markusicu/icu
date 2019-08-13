@@ -339,7 +339,9 @@ XLikelySubtags::XLikelySubtags(XLikelySubtagsData &data) :
         regionAliases(std::move(data.regionAliases)),
         trie(data.trieBytes),
         lsrs(data.lsrs),
+#if U_DEBUG
         lsrsLength(data.lsrsLength),
+#endif
         distanceData(data) {
     data.langInfoBundle = nullptr;
     data.lsrs = nullptr;

@@ -119,7 +119,9 @@ private:
     int32_t defaultLsrIndex;
     uint64_t trieFirstLetterStates[26];
     const LSR *lsrs;
+#if U_DEBUG
     int32_t lsrsLength;
+#endif
 
     // distance/matcher data: see comment in XLikelySubtagsData::load()
     LocaleDistanceData distanceData;

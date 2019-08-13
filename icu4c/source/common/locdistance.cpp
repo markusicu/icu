@@ -199,7 +199,7 @@ int32_t LocaleDistance::getDesSuppScriptDistance(
         distance = trieNext(iter, supported, true);
     }
     if (distance < 0) {
-        UStringTrieResult result = iter.resetToState64(startState).next('*');  // <*, *>
+        UStringTrieResult result = iter.resetToState64(startState).next(u'*');  // <*, *>
         U_ASSERT(USTRINGTRIE_HAS_VALUE(result));
         if (uprv_strcmp(desired, supported) == 0) {
             distance = 0;  // same script
@@ -286,7 +286,10 @@ int32_t LocaleDistance::getRegionPartitionsDistance(
 }
 
 int32_t LocaleDistance::getFallbackRegionDistance(BytesTrie &iter, uint64_t startState) {
-    UStringTrieResult result = iter.resetToState64(startState).next('*');  // <*, *>
+#if U_DEBUG
+    UStringTrieResult result =
+#endif
+    iter.resetToState64(startState).next(u'*');  // <*, *>
     U_ASSERT(USTRINGTRIE_HAS_VALUE(result));
     int32_t distance = iter.getValue();
     U_ASSERT(distance >= 0);
