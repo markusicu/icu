@@ -38,7 +38,12 @@ struct LSR final : public UMemory {
     LSR(char prefix, const char *lang, const char *scr, const char *r, UErrorCode &errorCode);
     LSR(LSR &&other) U_NOEXCEPT;
     LSR(const LSR &other) = delete;
-    ~LSR();
+    inline ~LSR() {
+        // Pure inline code for almost all instances.
+        if (owned != nullptr) {
+            deleteOwned();
+        }
+    }
 
     LSR &operator=(LSR &&other) U_NOEXCEPT;
     LSR &operator=(const LSR &other) = delete;
@@ -57,6 +62,9 @@ struct LSR final : public UMemory {
     }
 
     LSR &setHashCode();
+
+private:
+    void deleteOwned();
 };
 
 U_NAMESPACE_END

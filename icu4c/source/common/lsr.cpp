@@ -40,16 +40,16 @@ LSR::LSR(LSR &&other) U_NOEXCEPT :
     }
 }
 
-LSR::~LSR() {
+void LSR::deleteOwned() {
     uprv_free(owned);
 }
 
 LSR &LSR::operator=(LSR &&other) U_NOEXCEPT {
+    this->~LSR();
     language = other.language;
     script = other.script;
     region = other.region;
     regionIndex = other.regionIndex;
-    uprv_free(owned);
     owned = other.owned;
     hashCode = other.hashCode;
     if (owned != nullptr) {
