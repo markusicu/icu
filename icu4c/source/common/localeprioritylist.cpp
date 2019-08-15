@@ -21,13 +21,13 @@ U_NAMESPACE_BEGIN
 namespace {
 
 int32_t hashLocale(const UHashTok token) {
-    const Locale *locale = static_cast<const Locale *>(token.pointer);
+    const auto *locale = static_cast<const Locale *>(token.pointer);
     return locale->hashCode();
 }
 
 UBool compareLocales(const UHashTok t1, const UHashTok t2) {
-    const Locale *l1 = static_cast<const Locale *>(t1.pointer);
-    const Locale *l2 = static_cast<const Locale *>(t2.pointer);
+    const auto *l1 = static_cast<const Locale *>(t1.pointer);
+    const auto *l2 = static_cast<const Locale *>(t2.pointer);
     return *l1 == *l2;
 }
 
@@ -47,7 +47,8 @@ struct LocaleAndWeight {
 
 int32_t U_CALLCONV
 compareLocaleAndWeight(const void * /*context*/, const void *left, const void *right) {
-    return ((const LocaleAndWeight *)left)->compare(*(const LocaleAndWeight *)right);
+    return static_cast<const LocaleAndWeight *>(left)->
+        compare(*static_cast<const LocaleAndWeight *>(right));
 }
 
 const char *skipSpaces(const char *p, const char *limit) {
@@ -94,6 +95,17 @@ int32_t parseWeight(const char *&p, const char *limit) {
 
 }  // namespace
 
+/**
+ * Nothing but a wrapper over a MaybeStackArray of LocaleAndWeight.
+ *
+ * This wrapper exists (and is not in an anonymous namespace)
+ * so that we can forward-declare it in the header file and
+ * don't have to expose the MaybeStackArray specialization and
+ * the LocaleAndWeight to code (like the test) that #includes localeprioritylist.h.
+ * Also, otherwise we would have to do a platform-specific
+ * template export declaration of some kind for the MaybeStackArray specialization
+ * to be properly exported from the common DLL.
+ */
 struct LocaleAndWeightArray : public UMemory {
     MaybeStackArray<LocaleAndWeight, 20> array;
 };

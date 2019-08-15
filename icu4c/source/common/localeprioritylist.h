@@ -78,7 +78,7 @@ public:
         const LocalePriorityList &list;
         int32_t index = 0;
         int32_t count = 0;
-        int32_t length;
+        const int32_t length;
     };
 
     LocalePriorityList(StringPiece s, UErrorCode &errorCode);
@@ -96,6 +96,11 @@ public:
     Locale *orphanLocaleAt(int32_t i);
 
 private:
+    LocalePriorityList(const LocalePriorityList &) = delete;
+    LocalePriorityList(LocalePriorityList &&) = delete;
+    LocalePriorityList &operator=(const LocalePriorityList &) = delete;
+    LocalePriorityList &operator=(LocalePriorityList &&) = delete;
+
     bool add(const Locale &locale, int32_t weight, UErrorCode &errorCode);
 
     void sort(UErrorCode &errorCode);

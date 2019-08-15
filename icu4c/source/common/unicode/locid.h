@@ -1065,7 +1065,8 @@ public:
         const Locale &next() override { return *it_++; }
 
     private:
-        Iter it_, end_;
+        Iter it_;
+        const Iter end_;
     };
 
     /**
@@ -1102,7 +1103,8 @@ public:
         const Locale &next() override { return converter_(*it_++); }
 
     private:
-        Iter it_, end_;
+        Iter it_;
+        const Iter end_;
         Conv converter_;
     };
 #endif  // U_HIDE_DRAFT_API
