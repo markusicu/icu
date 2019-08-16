@@ -57,7 +57,8 @@ private:
 };
 
 struct LocaleDistanceData {
-    LocaleDistanceData(XLikelySubtagsData &data);
+    LocaleDistanceData() = default;
+    LocaleDistanceData(LocaleDistanceData &&data);
     ~LocaleDistanceData();
 
     const uint8_t *distanceTrieBytes = nullptr;
@@ -66,8 +67,12 @@ struct LocaleDistanceData {
     const LSR *paradigms = nullptr;
     int32_t paradigmsLength = 0;
     const int32_t *distances = nullptr;
+
+private:
+    LocaleDistanceData &operator=(const LocaleDistanceData &) = delete;
 };
 
+// TODO(ICU-20777): Rename to just LikelySubtags.
 class XLikelySubtags final : public UMemory {
 public:
     ~XLikelySubtags();
@@ -80,6 +85,9 @@ public:
     // VisibleForTesting
     LSR makeMaximizedLsrFrom(const Locale &locale, UErrorCode &errorCode) const;
 
+    // TODO(ICU-20777): Switch Locale/uloc_ likely-subtags API from the old code
+    // in loclikely.cpp to this new code, including activating this
+    // minimizeSubtags() function. The LocaleMatcher does not minimize.
 #if 0
     LSR minimizeSubtags(const char *languageIn, const char *scriptIn, const char *regionIn,
                         ULocale.Minimize fieldToFavor, UErrorCode &errorCode) const;
@@ -106,6 +114,9 @@ private:
     static int32_t trieNext(BytesTrie &iter, const char *s, int32_t i);
 
     UResourceBundle *langInfoBundle;
+    // We could store the strings by value, except that if there were few enough strings,
+    // moving the contents could copy it to a different array,
+    // invalidating the pointers stored in the maps.
     CharString *strings;
     CharStringMap languageAliases;
     CharStringMap regionAliases;

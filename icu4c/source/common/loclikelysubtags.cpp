@@ -98,6 +98,22 @@ private:
 
 }  // namespace
 
+LocaleDistanceData::LocaleDistanceData(LocaleDistanceData &&data) :
+        distanceTrieBytes(data.distanceTrieBytes),
+        regionToPartitions(data.regionToPartitions),
+        partitions(data.partitions),
+        paradigms(data.paradigms), paradigmsLength(data.paradigmsLength),
+        distances(data.distances) {
+    data.partitions = nullptr;
+    data.paradigms = nullptr;
+}
+
+LocaleDistanceData::~LocaleDistanceData() {
+    uprv_free(partitions);
+    delete[] paradigms;
+}
+
+// TODO(ICU-20777): Rename to just LikelySubtagsData.
 struct XLikelySubtagsData {
     UResourceBundle *langInfoBundle = nullptr;
     UniqueCharStrings strings;
@@ -107,21 +123,13 @@ struct XLikelySubtagsData {
     LSR *lsrs = nullptr;
     int32_t lsrsLength = 0;
 
-    // distance/matcher data
-    const uint8_t *distanceTrieBytes = nullptr;
-    const uint8_t *regionToPartitions = nullptr;
-    const char **partitions = nullptr;
-    LSR *paradigms = nullptr;
-    int32_t paradigmsLength = 0;
-    const int32_t *distances = nullptr;
+    LocaleDistanceData distanceData;
 
     XLikelySubtagsData(UErrorCode &errorCode) : strings(errorCode) {}
 
     ~XLikelySubtagsData() {
         ures_close(langInfoBundle);
         delete[] lsrs;
-        uprv_free(partitions);
-        delete[] paradigms;
     }
 
     void load(UErrorCode &errorCode) {
@@ -177,12 +185,12 @@ struct XLikelySubtagsData {
             if (U_FAILURE(errorCode)) { return; }
 
             if (matchTable.findValue("trie", value)) {
-                distanceTrieBytes = value.getBinary(length, errorCode);
+                distanceData.distanceTrieBytes = value.getBinary(length, errorCode);
                 if (U_FAILURE(errorCode)) { return; }
             }
 
             if (matchTable.findValue("regionToPartitions", value)) {
-                regionToPartitions = value.getBinary(length, errorCode);
+                distanceData.regionToPartitions = value.getBinary(length, errorCode);
                 if (U_FAILURE(errorCode)) { return; }
                 if (length < LSR::REGION_INDEX_LIMIT) {
                     errorCode = U_INVALID_FORMAT_ERROR;
@@ -202,7 +210,7 @@ struct XLikelySubtagsData {
             }
 
             if (matchTable.findValue("distances", value)) {
-                distances = value.getIntVector(length, errorCode);
+                distanceData.distances = value.getIntVector(length, errorCode);
                 if (U_FAILURE(errorCode)) { return; }
                 if (length < 4) {  // LocaleDistance IX_LIMIT
                     errorCode = U_INVALID_FORMAT_ERROR;
@@ -246,20 +254,20 @@ struct XLikelySubtagsData {
         }
 
         if (partitionsLength > 0) {
-            partitions = static_cast<const char **>(
+            distanceData.partitions = static_cast<const char **>(
                 uprv_malloc(partitionsLength * sizeof(const char *)));
-            if (partitions == nullptr) {
+            if (distanceData.partitions == nullptr) {
                 errorCode = U_MEMORY_ALLOCATION_ERROR;
                 return;
             }
             for (int32_t i = 0; i < partitionsLength; ++i) {
-                partitions[i] = strings.get(partitionIndexes[i]);
+                distanceData.partitions[i] = strings.get(partitionIndexes[i]);
             }
         }
 
         if (paradigmSubtagsLength > 0) {
-            paradigmsLength = paradigmSubtagsLength / 3;
-            paradigms = new LSR[paradigmsLength];
+            distanceData.paradigmsLength = paradigmSubtagsLength / 3;
+            LSR *paradigms = new LSR[distanceData.paradigmsLength];
             if (paradigms == nullptr) {
                 errorCode = U_MEMORY_ALLOCATION_ERROR;
                 return;
@@ -269,6 +277,7 @@ struct XLikelySubtagsData {
                                    strings.get(paradigmSubtagIndexes[i + 1]),
                                    strings.get(paradigmSubtagIndexes[i + 2]));
             }
+            distanceData.paradigms = paradigms;
         }
     }
 
@@ -294,21 +303,6 @@ private:
         return true;
     }
 };
-
-LocaleDistanceData::LocaleDistanceData(XLikelySubtagsData &data) :
-        distanceTrieBytes(data.distanceTrieBytes),
-        regionToPartitions(data.regionToPartitions),
-        partitions(data.partitions),
-        paradigms(data.paradigms), paradigmsLength(data.paradigmsLength),
-        distances(data.distances) {
-    data.partitions = nullptr;
-    data.paradigms = nullptr;
-}
-
-LocaleDistanceData::~LocaleDistanceData() {
-    uprv_free(partitions);
-    delete[] paradigms;
-}
 
 namespace {
 
@@ -354,7 +348,7 @@ XLikelySubtags::XLikelySubtags(XLikelySubtagsData &data) :
 #if U_DEBUG
         lsrsLength(data.lsrsLength),
 #endif
-        distanceData(data) {
+        distanceData(std::move(data.distanceData)) {
     data.langInfoBundle = nullptr;
     data.lsrs = nullptr;
 
@@ -385,7 +379,6 @@ XLikelySubtags::~XLikelySubtags() {
     delete[] lsrs;
 }
 
-// VisibleForTesting
 LSR XLikelySubtags::makeMaximizedLsrFrom(const Locale &locale, UErrorCode &errorCode) const {
     const char *name = locale.getName();
     if (uprv_isAtSign(name[0]) && name[1] == 'x' && name[2] == '=') {  // name.startsWith("@x=")
@@ -590,6 +583,9 @@ int32_t XLikelySubtags::trieNext(BytesTrie &iter, const char *s, int32_t i) {
     }
 }
 
+// TODO(ICU-20777): Switch Locale/uloc_ likely-subtags API from the old code
+// in loclikely.cpp to this new code, including activating this
+// minimizeSubtags() function. The LocaleMatcher does not minimize.
 #if 0
 LSR XLikelySubtags::minimizeSubtags(const char *languageIn, const char *scriptIn,
                                     const char *regionIn, ULocale.Minimize fieldToFavor,

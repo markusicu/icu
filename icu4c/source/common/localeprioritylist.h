@@ -97,9 +97,7 @@ public:
 
 private:
     LocalePriorityList(const LocalePriorityList &) = delete;
-    LocalePriorityList(LocalePriorityList &&) = delete;
     LocalePriorityList &operator=(const LocalePriorityList &) = delete;
-    LocalePriorityList &operator=(LocalePriorityList &&) = delete;
 
     bool add(const Locale &locale, int32_t weight, UErrorCode &errorCode);
 
