@@ -124,8 +124,9 @@ U_CFUNC UBool
 uprv_isEbcdicAtSign(char c);
 
 /**
- * \def uprv_invCharToAscii
- * Converts an invariant character to ASCII.
+ * \def uprv_isAtSign
+ * Returns true if c == '@' is possible.
+ * For ASCII, checks for exactly '@'. For EBCDIC, calls uprv_isEbcdicAtSign().
  * @internal
  */
 #if U_CHARSET_FAMILY==U_ASCII_FAMILY

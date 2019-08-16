@@ -330,7 +330,7 @@ LocaleMatcher::LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
         favorSubtag(builder.favor_),
         supportedLocales(nullptr), lsrs(nullptr), supportedLocalesLength(0),
         supportedLsrToIndex(nullptr),
-        supportedLsrs(nullptr), supportedIndexes(nullptr), supportedLsrsLength(0),
+        supportedLSRs(nullptr), supportedIndexes(nullptr), supportedLSRsLength(0),
         ownedDefaultLocale(nullptr), defaultLocale(nullptr), defaultLocaleIndex(-1) {
     if (U_FAILURE(errorCode)) { return; }
     if (thresholdDistance < 0) {
@@ -389,7 +389,7 @@ LocaleMatcher::LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
         // and an ordered list of (LSR, supported index).
         // We insert the supported locales in the following order:
         // 1. Default locale, if it is supported.
-        // 2. Priority locales in builder order.
+        // 2. Priority locales (aka "paradigm locales") in builder order.
         // 3. Remaining locales in builder order.
         // In Java, we use a LinkedHashMap for both map & ordered lists.
         // In C++, we use separate structures.
@@ -402,12 +402,12 @@ LocaleMatcher::LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
                                              supportedLocalesLength, &errorCode);
         if (U_FAILURE(errorCode)) { return; }
         int32_t paradigmLimit = 1 + localeDistance.getParadigmLSRsLength();
-        int32_t suppLsrsCapacity = paradigmLimit + supportedLocalesLength;
-        supportedLsrs = static_cast<const LSR **>(
-            uprv_malloc(suppLsrsCapacity * sizeof(const LSR *)));
+        int32_t suppLSRsCapacity = paradigmLimit + supportedLocalesLength;
+        supportedLSRs = static_cast<const LSR **>(
+            uprv_malloc(suppLSRsCapacity * sizeof(const LSR *)));
         supportedIndexes = static_cast<int32_t *>(
-            uprv_malloc(suppLsrsCapacity * sizeof(int32_t)));
-        if (supportedLsrs == nullptr || supportedIndexes == nullptr) {
+            uprv_malloc(suppLSRsCapacity * sizeof(int32_t)));
+        if (supportedLSRs == nullptr || supportedIndexes == nullptr) {
             errorCode = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
@@ -415,7 +415,7 @@ LocaleMatcher::LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
         int32_t otherIndex = paradigmLimit;
         if (idef >= 0) {
             uhash_puti(supportedLsrToIndex, const_cast<LSR *>(defLSR), idef + 1, &errorCode);
-            supportedLsrs[0] = defLSR;
+            supportedLSRs[0] = defLSR;
             supportedIndexes[0] = idef;
             paradigmIndex = 1;
         }
@@ -429,7 +429,7 @@ LocaleMatcher::LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
                 defLSR = &lsr;
                 idef = 0;
                 uhash_puti(supportedLsrToIndex, const_cast<LSR *>(&lsr), 0 + 1, &errorCode);
-                supportedLsrs[0] = &lsr;
+                supportedLSRs[0] = &lsr;
                 supportedIndexes[0] = 0;
                 paradigmIndex = 1;
             } else if (idef >= 0 && lsr == *defLSR) {
@@ -443,10 +443,10 @@ LocaleMatcher::LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
             } else {
                 if (putIfAbsent(supportedLsrToIndex, lsr, i + 1, errorCode)) {
                     if (localeDistance.isParadigmLSR(lsr)) {
-                        supportedLsrs[paradigmIndex] = &lsr;
+                        supportedLSRs[paradigmIndex] = &lsr;
                         supportedIndexes[paradigmIndex++] = i;
                     } else {
-                        supportedLsrs[otherIndex] = &lsr;
+                        supportedLSRs[otherIndex] = &lsr;
                         supportedIndexes[otherIndex++] = i;
                     }
                 }
@@ -455,12 +455,12 @@ LocaleMatcher::LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
         }
         // Squeeze out unused array slots.
         if (paradigmIndex < paradigmLimit && paradigmLimit < otherIndex) {
-            uprv_memmove(supportedLsrs + paradigmIndex, supportedLsrs + paradigmLimit,
+            uprv_memmove(supportedLSRs + paradigmIndex, supportedLSRs + paradigmLimit,
                          (otherIndex - paradigmLimit) * sizeof(const LSR *));
             uprv_memmove(supportedIndexes + paradigmIndex, supportedIndexes + paradigmLimit,
                          (otherIndex - paradigmLimit) * sizeof(int32_t));
         }
-        supportedLsrsLength = otherIndex - (paradigmLimit - paradigmIndex);
+        supportedLSRsLength = otherIndex - (paradigmLimit - paradigmIndex);
     }
 
     if (def != nullptr && (idef < 0 || def != supportedLocales[idef])) {
@@ -488,18 +488,18 @@ LocaleMatcher::LocaleMatcher(LocaleMatcher &&src) U_NOEXCEPT :
         supportedLocales(src.supportedLocales), lsrs(src.lsrs),
         supportedLocalesLength(src.supportedLocalesLength),
         supportedLsrToIndex(src.supportedLsrToIndex),
-        supportedLsrs(src.supportedLsrs),
+        supportedLSRs(src.supportedLSRs),
         supportedIndexes(src.supportedIndexes),
-        supportedLsrsLength(src.supportedLsrsLength),
+        supportedLSRsLength(src.supportedLSRsLength),
         ownedDefaultLocale(src.ownedDefaultLocale), defaultLocale(src.defaultLocale),
         defaultLocaleIndex(src.defaultLocaleIndex) {
     src.supportedLocales = nullptr;
     src.lsrs = nullptr;
     src.supportedLocalesLength = 0;
     src.supportedLsrToIndex = nullptr;
-    src.supportedLsrs = nullptr;
+    src.supportedLSRs = nullptr;
     src.supportedIndexes = nullptr;
-    src.supportedLsrsLength = 0;
+    src.supportedLSRsLength = 0;
     src.ownedDefaultLocale = nullptr;
     src.defaultLocale = nullptr;
     src.defaultLocaleIndex = -1;
@@ -512,7 +512,7 @@ LocaleMatcher::~LocaleMatcher() {
     uprv_free(supportedLocales);
     delete[] lsrs;
     uhash_close(supportedLsrToIndex);
-    uprv_free(supportedLsrs);
+    uprv_free(supportedLSRs);
     uprv_free(supportedIndexes);
     delete ownedDefaultLocale;
 }
@@ -527,9 +527,9 @@ LocaleMatcher &LocaleMatcher::operator=(LocaleMatcher &&src) U_NOEXCEPT {
     lsrs = src.lsrs;
     supportedLocalesLength = src.supportedLocalesLength;
     supportedLsrToIndex = src.supportedLsrToIndex;
-    supportedLsrs = src.supportedLsrs;
+    supportedLSRs = src.supportedLSRs;
     supportedIndexes = src.supportedIndexes;
-    supportedLsrsLength = src.supportedLsrsLength;
+    supportedLSRsLength = src.supportedLSRsLength;
     ownedDefaultLocale = src.ownedDefaultLocale;
     defaultLocale = src.defaultLocale;
     defaultLocaleIndex = src.defaultLocaleIndex;
@@ -538,9 +538,9 @@ LocaleMatcher &LocaleMatcher::operator=(LocaleMatcher &&src) U_NOEXCEPT {
     src.lsrs = nullptr;
     src.supportedLocalesLength = 0;
     src.supportedLsrToIndex = nullptr;
-    src.supportedLsrs = nullptr;
+    src.supportedLSRs = nullptr;
     src.supportedIndexes = nullptr;
-    src.supportedLsrsLength = 0;
+    src.supportedLSRsLength = 0;
     src.ownedDefaultLocale = nullptr;
     src.defaultLocale = nullptr;
     src.defaultLocaleIndex = -1;
@@ -677,7 +677,7 @@ int32_t LocaleMatcher::getBestSuppIndex(LSR desiredLSR, LocaleLsrIterator *remai
             }
         }
         int32_t bestIndexAndDistance = localeDistance.getBestIndexAndDistance(
-                desiredLSR, supportedLsrs, supportedLsrsLength, bestDistance, favorSubtag);
+                desiredLSR, supportedLSRs, supportedLSRsLength, bestDistance, favorSubtag);
         if (bestIndexAndDistance >= 0) {
             bestDistance = bestIndexAndDistance & 0xff;
             if (remainingIter != nullptr) {

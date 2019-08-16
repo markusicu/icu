@@ -22,6 +22,11 @@ U_NAMESPACE_BEGIN
 
 namespace {
 
+/**
+ * Bit flag used on the last character of a subtag in the trie.
+ * Must be set consistently by the builder and the lookup code.
+ */
+constexpr int32_t END_OF_SUBTAG = 0x80;
 /** Distance value bit flag, set by the builder. */
 constexpr int32_t DISTANCE_SKIP_SCRIPT = 0x80;
 /** Distance value bit flag, set by trieNext(). */
@@ -86,6 +91,12 @@ LocaleDistance::LocaleDistance(const LocaleDistanceData &data) :
         defaultScriptDistance(data.distances[IX_DEF_SCRIPT_DISTANCE]),
         defaultRegionDistance(data.distances[IX_DEF_REGION_DISTANCE]),
         minRegionDistance(data.distances[IX_MIN_REGION_DISTANCE]) {
+    // For the default demotion value, use the
+    // default region distance between unrelated Englishes.
+    // Thus, unless demotion is turned off,
+    // a mere region difference for one desired locale
+    // is as good as a perfect match for the next following desired locale.
+    // As of CLDR 36, we have <languageMatch desired="en_*_*" supported="en_*_*" distance="5"/>.
     LSR en("en", "Latn", "US");
     LSR enGB("en", "Latn", "GB");
     const LSR *p_enGB = &enGB;
@@ -95,18 +106,18 @@ LocaleDistance::LocaleDistance(const LocaleDistanceData &data) :
 
 int32_t LocaleDistance::getBestIndexAndDistance(
         const LSR &desired,
-        const LSR **supportedLsrs, int32_t supportedLsrsLength,
+        const LSR **supportedLSRs, int32_t supportedLSRsLength,
         int32_t threshold, ULocMatchFavorSubtag favorSubtag) const {
     BytesTrie iter(trie);
     // Look up the desired language only once for all supported LSRs.
     // Its "distance" is either a match point value of 0, or a non-match negative value.
     // Note: The data builder verifies that there are no <*, supported> or <desired, *> rules.
     int32_t desLangDistance = trieNext(iter, desired.language, false);
-    uint64_t desLangState = desLangDistance >= 0 && supportedLsrsLength > 1 ? iter.getState64() : 0;
+    uint64_t desLangState = desLangDistance >= 0 && supportedLSRsLength > 1 ? iter.getState64() : 0;
     // Index of the supported LSR with the lowest distance.
     int32_t bestIndex = -1;
-    for (int32_t slIndex = 0; slIndex < supportedLsrsLength; ++slIndex) {
-        const LSR &supported = *supportedLsrs[slIndex];
+    for (int32_t slIndex = 0; slIndex < supportedLSRsLength; ++slIndex) {
+        const LSR &supported = *supportedLSRs[slIndex];
         bool star = false;
         int32_t distance = desLangDistance;
         if (distance >= 0) {
@@ -134,6 +145,11 @@ int32_t LocaleDistance::getBestIndexAndDistance(
             star = true;
         }
         U_ASSERT(0 <= distance && distance <= 100);
+        // We implement "favor subtag" by reducing the language subtag distance
+        // (unscientifically reducing it to a quarter of the normal value),
+        // so that the script distance is relatively more important.
+        // For example, given a default language distance of 80, we reduce it to 20,
+        // which is below the default threshold of 50, which is the default script distance.
         if (favorSubtag == ULOCMATCH_FAVOR_SCRIPT) {
             distance >>= 2;
         }
@@ -220,12 +236,15 @@ int32_t LocaleDistance::getRegionPartitionsDistance(
     char desired = *desiredPartitions++;
     char supported = *supportedPartitions++;
     U_ASSERT(desired != 0 && supported != 0);
-    bool suppLengthGt1 = *supportedPartitions != 0;
-    // if (desLength == 1 && suppLength == 1)
+    // See if we have single desired/supported partitions, from NUL-terminated
+    // partition strings without explicit length.
+    bool suppLengthGt1 = *supportedPartitions != 0;  // gt1: more than 1 character
+    // equivalent to: if (desLength == 1 && suppLength == 1)
     if (*desiredPartitions == 0 && !suppLengthGt1) {
-        UStringTrieResult result = iter.next(uprv_invCharToAscii(desired) | 0x80);
+        // Fastpath for single desired/supported partitions.
+        UStringTrieResult result = iter.next(uprv_invCharToAscii(desired) | END_OF_SUBTAG);
         if (USTRINGTRIE_HAS_NEXT(result)) {
-            result = iter.next(uprv_invCharToAscii(supported) | 0x80);
+            result = iter.next(uprv_invCharToAscii(supported) | END_OF_SUBTAG);
             if (USTRINGTRIE_HAS_VALUE(result)) {
                 return iter.getValue();
             }
@@ -240,11 +259,11 @@ int32_t LocaleDistance::getRegionPartitionsDistance(
     for (;;) {
         // Look up each desired-partition string only once,
         // not for each (desired, supported) pair.
-        UStringTrieResult result = iter.next(uprv_invCharToAscii(desired) | 0x80);
+        UStringTrieResult result = iter.next(uprv_invCharToAscii(desired) | END_OF_SUBTAG);
         if (USTRINGTRIE_HAS_NEXT(result)) {
             uint64_t desState = suppLengthGt1 ? iter.getState64() : 0;
             for (;;) {
-                result = iter.next(uprv_invCharToAscii(supported) | 0x80);
+                result = iter.next(uprv_invCharToAscii(supported) | END_OF_SUBTAG);
                 int32_t d;
                 if (USTRINGTRIE_HAS_VALUE(result)) {
                     d = iter.getValue();
@@ -312,7 +331,7 @@ int32_t LocaleDistance::trieNext(BytesTrie &iter, const char *s, bool wantValue)
             }
         } else {
             // last character of this subtag
-            UStringTrieResult result = iter.next(c | 0x80);
+            UStringTrieResult result = iter.next(c | END_OF_SUBTAG);
             if (wantValue) {
                 if (USTRINGTRIE_HAS_VALUE(result)) {
                     int32_t value = iter.getValue();

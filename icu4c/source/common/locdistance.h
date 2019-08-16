@@ -35,7 +35,7 @@ public:
      * and its distance (0..ABOVE_THRESHOLD) in bits 7..0.
      */
     int32_t getBestIndexAndDistance(const LSR &desired,
-                                    const LSR **supportedLsrs, int32_t supportedLsrsLength,
+                                    const LSR **supportedLSRs, int32_t supportedLSRsLength,
                                     int32_t threshold, ULocMatchFavorSubtag favorSubtag) const;
 
     int32_t getParadigmLSRsLength() const { return paradigmLSRsLength; }

@@ -327,8 +327,8 @@ public final class LocaleMatcher {
     // These are in preference order: 1. Default locale 2. paradigm locales 3. others.
     private final Map<LSR, Integer> supportedLsrToIndex;
     // Array versions of the supportedLsrToIndex keys and values.
-    // The distance lookup loops over the supportedLsrs and returns the index of the best match.
-    private final LSR[] supportedLsrs;
+    // The distance lookup loops over the supportedLSRs and returns the index of the best match.
+    private final LSR[] supportedLSRs;
     private final int[] supportedIndexes;
     private final ULocale defaultULocale;
     private final Locale defaultLocale;
@@ -616,7 +616,7 @@ public final class LocaleMatcher {
         // We use a LinkedHashMap for both,
         // and insert the supported locales in the following order:
         // 1. Default locale, if it is supported.
-        // 2. Priority locales in builder order.
+        // 2. Priority locales (aka "paradigm locales") in builder order.
         // 3. Remaining locales in builder order.
         supportedLsrToIndex = new LinkedHashMap<>(supportedLocalesLength);
         // Note: We could work with a single LinkedHashMap by storing ~i (the binary-not index)
@@ -664,12 +664,12 @@ public final class LocaleMatcher {
         if (otherLsrToIndex != null) {
             supportedLsrToIndex.putAll(otherLsrToIndex);
         }
-        int supportedLsrsLength = supportedLsrToIndex.size();
-        supportedLsrs = new LSR[supportedLsrsLength];
-        supportedIndexes = new int[supportedLsrsLength];
+        int supportedLSRsLength = supportedLsrToIndex.size();
+        supportedLSRs = new LSR[supportedLSRsLength];
+        supportedIndexes = new int[supportedLSRsLength];
         i = 0;
         for (Map.Entry<LSR, Integer> entry : supportedLsrToIndex.entrySet()) {
-            supportedLsrs[i] = entry.getKey();  // = lsrs[entry.getValue()]
+            supportedLSRs[i] = entry.getKey();  // = lsrs[entry.getValue()]
             supportedIndexes[i++] = entry.getValue();
         }
 
@@ -951,7 +951,7 @@ public final class LocaleMatcher {
                 return suppIndex;
             }
             int bestIndexAndDistance = LocaleDistance.INSTANCE.getBestIndexAndDistance(
-                    desiredLSR, supportedLsrs, bestDistance, favorSubtag);
+                    desiredLSR, supportedLSRs, bestDistance, favorSubtag);
             if (bestIndexAndDistance >= 0) {
                 bestDistance = bestIndexAndDistance & 0xff;
                 if (remainingIter != null) { remainingIter.rememberCurrent(desiredIndex); }
