@@ -1183,7 +1183,7 @@ public class UnicodeSetTest extends CoreTestFmwk {
                 // Script_Extensions, new in Unicode 6.0
                 "[:scx=Arab:]",
                 "\\u061E\\u061F\\u0620\\u0621\\u063F\\u0640\\u0650\\u065E\\uFDF1\\uFDF2\\uFDF3",
-                "\\u088F\\uFDEF\\uFEFE",
+                "\\uFDEF\\uFEFE",
 
                 // U+FDF2 has Script=Arabic and also Arab in its Script_Extensions,
                 // so scx-sc is missing U+FDF2.
@@ -3227,7 +3227,7 @@ public class UnicodeSetTest extends CoreTestFmwk {
         // Strings
         unicodeSet.add("world"); // adds string
         unicodeSet.addAll("one", "two", "three"); // adds strings
-        return (UnicodeSet) unicodeSet.freeze();
+        return unicodeSet.freeze();
     }
 
     @Test
