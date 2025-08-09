@@ -1172,9 +1172,9 @@ void UnicodeTest::TestIDStatus() {
     // Property names work and get the correct sets.
     UnicodeSet idStatus(u"[:Identifier_Status=Allowed:]", errorCode);
     // Unicode 15.1: 112778 Allowed characters; normally grows over time
-    // Unicode 17: Only 33794 Allowed characters after making
+    // Unicode 17: Only 33791 Allowed characters after making
     // most Unified_Ideograph characters Uncommon_Use and revisiting others as well.
-    assertTrue("Allowed number of characters", idStatus.size() >= 33794);
+    assertTrue("Allowed number of characters", idStatus.size() >= 33791);
     assertFalse("Allowed.contains(slash)", idStatus.contains(0x2F));
     assertTrue("Allowed.contains(digit 0)", idStatus.contains(0x30));
     assertTrue("Allowed.contains(colon)", idStatus.contains(0x3A));
@@ -1286,9 +1286,9 @@ void UnicodeTest::TestIDType() {
     UnicodeSet uncommon(u"[:Identifier_Type=Uncommon_Use:]", errorCode);
     UnicodeSet notChar(u"[:Identifier_Type=Not_Character:]", errorCode);
     // Unicode 15.1 set sizes; normally grows over time except Not_Character shrinks
-    // Unicode 17: Only 33776 Recommended characters after making
+    // Unicode 17: Only 33773 Recommended characters after making
     // most Unified_Ideograph characters Uncommon_Use and revisiting others as well.
-    assertTrue("Recommended number of characters", rec.size() >= 33776);
+    assertTrue("Recommended number of characters", rec.size() >= 33773);
     assertTrue("Inclusion number of characters", incl.size() >= 17);
     assertTrue("Limited_Use number of characters", limited.size() >= 5268);
     assertTrue("Uncommon_Use number of characters", uncommon.size() >= 398);

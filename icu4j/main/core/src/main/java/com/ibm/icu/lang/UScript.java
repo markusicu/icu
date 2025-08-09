@@ -1086,13 +1086,11 @@ public final class UScript {
     /** @stable ICU 78 */
     public static final int BERIA_ERFE = 208; /* Berf */
     /** @stable ICU 78 */
-    public static final int CHISOI = 209; /* Chis */
+    public static final int SIDETIC = 209; /* Sidt */
     /** @stable ICU 78 */
-    public static final int SIDETIC = 210; /* Sidt */
+    public static final int TAI_YO = 210; /* Tayo */
     /** @stable ICU 78 */
-    public static final int TAI_YO = 211; /* Tayo */
-    /** @stable ICU 78 */
-    public static final int TOLONG_SIKI = 212; /* Tols */
+    public static final int TOLONG_SIKI = 211; /* Tols */
 
     /**
      * One more than the highest normal UScript code.
@@ -1101,7 +1099,7 @@ public final class UScript {
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
     @Deprecated
-    public static final int CODE_LIMIT   = 213;
+    public static final int CODE_LIMIT   = 212;
 
     private static int[] getCodesFromLocale(ULocale locale) {
         // Multi-script languages, equivalent to the LocaleScript data
@@ -1575,7 +1573,7 @@ public final class UScript {
             0x11A5C | EXCLUSION,  // Soyo
             0x11A0B | EXCLUSION,  // Zanb
             0x1180B | EXCLUSION,  // Dogr
-            0x11D71 | LIMITED_USE,  // Gong
+            0x11D71 | EXCLUSION,  // Gong
             0x11EE5 | EXCLUSION,  // Maka
             0x16E40 | EXCLUSION | CASED,  // Medf
             0x10D12 | LIMITED_USE | RTL,  // Rohg
@@ -1605,7 +1603,6 @@ public final class UScript {
             0x105C2 | EXCLUSION,  // Todr
             0x11392 | EXCLUSION,  // Tutg
             0x16EA1 | EXCLUSION | CASED,  // Berf
-            0x16D93 | EXCLUSION,  // Chis
             0x10950 | EXCLUSION | RTL,  // Sidt
             0x1E6D5 | EXCLUSION | LB_LETTERS,  // Tayo
             0x11DC6 | EXCLUSION,  // Tols

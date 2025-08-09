@@ -1,5 +1,5 @@
 # DerivedCoreProperties-17.0.0.txt
-# Date: 2025-04-25, 16:57:07 GMT
+# Date: 2025-07-30, 23:55:08 GMT
 # © 2025 Unicode®, Inc.
 # Unicode and the Unicode Logo are registered trademarks of Unicode, Inc. in the U.S. and other countries.
 # For terms of use and license, see https://www.unicode.org/terms_of_use.html
@@ -388,7 +388,6 @@ FFE9..FFEC    ; Math
 09E2..09E3    ; Alphabetic
 09F0..09F1    ; Alphabetic
 09FC          ; Alphabetic
-09FF          ; Alphabetic
 0A01..0A02    ; Alphabetic
 0A03          ; Alphabetic
 0A05..0A0A    ; Alphabetic
@@ -1322,9 +1321,6 @@ FFDA..FFDC    ; Alphabetic
 16D40..16D42  ; Alphabetic
 16D43..16D6A  ; Alphabetic
 16D6B..16D6C  ; Alphabetic
-16D80..16D97  ; Alphabetic
-16D98         ; Alphabetic
-16D99..16D9C  ; Alphabetic
 16E40..16E7F  ; Alphabetic
 16EA0..16EB8  ; Alphabetic
 16EBB..16ED3  ; Alphabetic
@@ -1470,7 +1466,7 @@ FFDA..FFDC    ; Alphabetic
 30000..3134A  ; Alphabetic
 31350..33479  ; Alphabetic
 
-# Total code points: 147451
+# Total code points: 147421
 
 # ================================================
 
@@ -3137,7 +3133,7 @@ FF41..FF5A    ; Cased
 0B3F          ; Case_Ignorable
 0B41..0B44    ; Case_Ignorable
 0B4D          ; Case_Ignorable
-0B53..0B56    ; Case_Ignorable
+0B55..0B56    ; Case_Ignorable
 0B62..0B63    ; Case_Ignorable
 0B82          ; Case_Ignorable
 0BC0          ; Case_Ignorable
@@ -3498,8 +3494,6 @@ FFF9..FFFB    ; Case_Ignorable
 16B40..16B43  ; Case_Ignorable
 16D40..16D42  ; Case_Ignorable
 16D6B..16D6C  ; Case_Ignorable
-16D98         ; Case_Ignorable
-16D9D         ; Case_Ignorable
 16F4F         ; Case_Ignorable
 16F8F..16F92  ; Case_Ignorable
 16F93..16F9F  ; Case_Ignorable
@@ -3553,13 +3547,14 @@ E0001         ; Case_Ignorable
 E0020..E007F  ; Case_Ignorable
 E0100..E01EF  ; Case_Ignorable
 
-# Total code points: 2798
+# Total code points: 2794
 
 # ================================================
 
 # Derived Property:   Changes_When_Lowercased (CWL)
 #  Characters whose normalized forms are not stable under a toLowercase mapping.
-#  For more information, see D139 in Section 3.13, "Default Case Algorithms".
+#  For more information, see the definition of "isLowercase(X)"
+#  in the "Conformance" / "Default Case Algorithms" section of the core specification.
 #  Changes_When_Lowercased(X) is true when toLowercase(toNFD(X)) != toNFD(X)
 
 0041..005A    ; Changes_When_Lowercased
@@ -4187,7 +4182,8 @@ FF21..FF3A    ; Changes_When_Lowercased
 
 # Derived Property:   Changes_When_Uppercased (CWU)
 #  Characters whose normalized forms are not stable under a toUppercase mapping.
-#  For more information, see D140 in Section 3.13, "Default Case Algorithms".
+#  For more information, see the definition of "isUppercase(X)"
+#  in the "Conformance" / "Default Case Algorithms" section of the core specification.
 #  Changes_When_Uppercased(X) is true when toUppercase(toNFD(X)) != toNFD(X)
 
 0061..007A    ; Changes_When_Uppercased
@@ -4831,7 +4827,8 @@ FF41..FF5A    ; Changes_When_Uppercased
 
 # Derived Property:   Changes_When_Titlecased (CWT)
 #  Characters whose normalized forms are not stable under a toTitlecase mapping.
-#  For more information, see D141 in Section 3.13, "Default Case Algorithms".
+#  For more information, see the definition of "isTitlecase(X)"
+#  in the "Conformance" / "Default Case Algorithms" section of the core specification.
 #  Changes_When_Titlecased(X) is true when toTitlecase(toNFD(X)) != toNFD(X)
 
 0061..007A    ; Changes_When_Titlecased
@@ -5474,7 +5471,8 @@ FF41..FF5A    ; Changes_When_Titlecased
 
 # Derived Property:   Changes_When_Casefolded (CWCF)
 #  Characters whose normalized forms are not stable under case folding.
-#  For more information, see D142 in Section 3.13, "Default Case Algorithms".
+#  For more information, see the definition of "isCasefolded(X)"
+#  in the "Conformance" / "Default Case Algorithms" section of the core specification.
 #  Changes_When_Casefolded(X) is true when toCasefold(toNFD(X)) != toNFD(X)
 
 0041..005A    ; Changes_When_Casefolded
@@ -6114,7 +6112,8 @@ FF21..FF3A    ; Changes_When_Casefolded
 
 # Derived Property:   Changes_When_Casemapped (CWCM)
 #  Characters whose normalized forms are not stable under case mapping.
-#  For more information, see D143 in Section 3.13, "Default Case Algorithms".
+#  For more information, see the definition of "isCased(X)"
+#  in the "Conformance" / "Default Case Algorithms" section of the core specification.
 #  Changes_When_Casemapped(X) is true when CWL(X), or CWT(X), or CWU(X)
 
 0041..005A    ; Changes_When_Casemapped
@@ -6344,7 +6343,6 @@ FF41..FF5A    ; Changes_When_Casemapped
 09DF..09E1    ; ID_Start
 09F0..09F1    ; ID_Start
 09FC          ; ID_Start
-09FF          ; ID_Start
 0A05..0A0A    ; ID_Start
 0A0F..0A10    ; ID_Start
 0A13..0A28    ; ID_Start
@@ -6914,8 +6912,6 @@ FFDA..FFDC    ; ID_Start
 16D40..16D42  ; ID_Start
 16D43..16D6A  ; ID_Start
 16D6B..16D6C  ; ID_Start
-16D80..16D97  ; ID_Start
-16D99..16D9C  ; ID_Start
 16E40..16E7F  ; ID_Start
 16EA0..16EB8  ; ID_Start
 16EBB..16ED3  ; ID_Start
@@ -7042,7 +7038,7 @@ FFDA..FFDC    ; ID_Start
 30000..3134A  ; ID_Start
 31350..33479  ; ID_Start
 
-# Total code points: 145945
+# Total code points: 145916
 
 # ================================================
 
@@ -7196,7 +7192,6 @@ FFDA..FFDC    ; ID_Start
 09F0..09F1    ; ID_Continue
 09FC          ; ID_Continue
 09FE          ; ID_Continue
-09FF          ; ID_Continue
 0A01..0A02    ; ID_Continue
 0A03          ; ID_Continue
 0A05..0A0A    ; ID_Continue
@@ -7257,7 +7252,7 @@ FFDA..FFDC    ; ID_Start
 0B47..0B48    ; ID_Continue
 0B4B..0B4C    ; ID_Continue
 0B4D          ; ID_Continue
-0B53..0B56    ; ID_Continue
+0B55..0B56    ; ID_Continue
 0B57          ; ID_Continue
 0B5C..0B5D    ; ID_Continue
 0B5F..0B61    ; ID_Continue
@@ -8303,11 +8298,6 @@ FFDA..FFDC    ; ID_Continue
 16D43..16D6A  ; ID_Continue
 16D6B..16D6C  ; ID_Continue
 16D70..16D79  ; ID_Continue
-16D80..16D97  ; ID_Continue
-16D98         ; ID_Continue
-16D99..16D9C  ; ID_Continue
-16D9D         ; ID_Continue
-16DA0..16DA9  ; ID_Continue
 16E40..16E7F  ; ID_Continue
 16EA0..16EB8  ; ID_Continue
 16EBB..16ED3  ; ID_Continue
@@ -8481,7 +8471,7 @@ FFDA..FFDC    ; ID_Continue
 31350..33479  ; ID_Continue
 E0100..E01EF  ; ID_Continue
 
-# Total code points: 149283
+# Total code points: 149240
 
 # ================================================
 
@@ -8573,7 +8563,6 @@ E0100..E01EF  ; ID_Continue
 09DF..09E1    ; XID_Start
 09F0..09F1    ; XID_Start
 09FC          ; XID_Start
-09FF          ; XID_Start
 0A05..0A0A    ; XID_Start
 0A0F..0A10    ; XID_Start
 0A13..0A28    ; XID_Start
@@ -9147,8 +9136,6 @@ FFDA..FFDC    ; XID_Start
 16D40..16D42  ; XID_Start
 16D43..16D6A  ; XID_Start
 16D6B..16D6C  ; XID_Start
-16D80..16D97  ; XID_Start
-16D99..16D9C  ; XID_Start
 16E40..16E7F  ; XID_Start
 16EA0..16EB8  ; XID_Start
 16EBB..16ED3  ; XID_Start
@@ -9275,7 +9262,7 @@ FFDA..FFDC    ; XID_Start
 30000..3134A  ; XID_Start
 31350..33479  ; XID_Start
 
-# Total code points: 145922
+# Total code points: 145893
 
 # ================================================
 
@@ -9425,7 +9412,6 @@ FFDA..FFDC    ; XID_Start
 09F0..09F1    ; XID_Continue
 09FC          ; XID_Continue
 09FE          ; XID_Continue
-09FF          ; XID_Continue
 0A01..0A02    ; XID_Continue
 0A03          ; XID_Continue
 0A05..0A0A    ; XID_Continue
@@ -9486,7 +9472,7 @@ FFDA..FFDC    ; XID_Start
 0B47..0B48    ; XID_Continue
 0B4B..0B4C    ; XID_Continue
 0B4D          ; XID_Continue
-0B53..0B56    ; XID_Continue
+0B55..0B56    ; XID_Continue
 0B57          ; XID_Continue
 0B5C..0B5D    ; XID_Continue
 0B5F..0B61    ; XID_Continue
@@ -10537,11 +10523,6 @@ FFDA..FFDC    ; XID_Continue
 16D43..16D6A  ; XID_Continue
 16D6B..16D6C  ; XID_Continue
 16D70..16D79  ; XID_Continue
-16D80..16D97  ; XID_Continue
-16D98         ; XID_Continue
-16D99..16D9C  ; XID_Continue
-16D9D         ; XID_Continue
-16DA0..16DA9  ; XID_Continue
 16E40..16E7F  ; XID_Continue
 16EA0..16EB8  ; XID_Continue
 16EBB..16ED3  ; XID_Continue
@@ -10715,7 +10696,7 @@ FFDA..FFDC    ; XID_Continue
 31350..33479  ; XID_Continue
 E0100..E01EF  ; XID_Continue
 
-# Total code points: 149264
+# Total code points: 149221
 
 # ================================================
 
@@ -10838,7 +10819,7 @@ E01F0..E0FFF  ; Default_Ignorable_Code_Point
 0B3F          ; Grapheme_Extend
 0B41..0B44    ; Grapheme_Extend
 0B4D          ; Grapheme_Extend
-0B53..0B56    ; Grapheme_Extend
+0B55..0B56    ; Grapheme_Extend
 0B57          ; Grapheme_Extend
 0B62..0B63    ; Grapheme_Extend
 0B82          ; Grapheme_Extend
@@ -11155,8 +11136,6 @@ FF9E..FF9F    ; Grapheme_Extend
 1612D..1612F  ; Grapheme_Extend
 16AF0..16AF4  ; Grapheme_Extend
 16B30..16B36  ; Grapheme_Extend
-16D98         ; Grapheme_Extend
-16D9D         ; Grapheme_Extend
 16F4F         ; Grapheme_Extend
 16F8F..16F92  ; Grapheme_Extend
 16FE4         ; Grapheme_Extend
@@ -11197,7 +11176,7 @@ FF9E..FF9F    ; Grapheme_Extend
 E0020..E007F  ; Grapheme_Extend
 E0100..E01EF  ; Grapheme_Extend
 
-# Total code points: 2236
+# Total code points: 2232
 
 # ================================================
 
@@ -11397,7 +11376,6 @@ E0100..E01EF  ; Grapheme_Extend
 09FB          ; Grapheme_Base
 09FC          ; Grapheme_Base
 09FD          ; Grapheme_Base
-09FF          ; Grapheme_Base
 0A03          ; Grapheme_Base
 0A05..0A0A    ; Grapheme_Base
 0A0F..0A10    ; Grapheme_Base
@@ -12776,9 +12754,6 @@ FFFC..FFFD    ; Grapheme_Base
 16D6B..16D6C  ; Grapheme_Base
 16D6D..16D6F  ; Grapheme_Base
 16D70..16D79  ; Grapheme_Base
-16D80..16D97  ; Grapheme_Base
-16D99..16D9C  ; Grapheme_Base
-16DA0..16DA9  ; Grapheme_Base
 16E40..16E7F  ; Grapheme_Base
 16E80..16E96  ; Grapheme_Base
 16E97..16E9A  ; Grapheme_Base
@@ -12994,7 +12969,7 @@ FFFC..FFFD    ; Grapheme_Base
 1FA80..1FA8A  ; Grapheme_Base
 1FA8E..1FAC6  ; Grapheme_Base
 1FAC8         ; Grapheme_Base
-1FACD..1FADD  ; Grapheme_Base
+1FACD..1FADC  ; Grapheme_Base
 1FADF..1FAEA  ; Grapheme_Base
 1FAEF..1FAF8  ; Grapheme_Base
 1FB00..1FB92  ; Grapheme_Base
@@ -13010,7 +12985,7 @@ FFFC..FFFD    ; Grapheme_Base
 30000..3134A  ; Grapheme_Base
 31350..33479  ; Grapheme_Base
 
-# Total code points: 157534
+# Total code points: 157494
 
 # ================================================
 
@@ -13082,9 +13057,8 @@ ABED          ; Grapheme_Link
 11F41         ; Grapheme_Link
 11F42         ; Grapheme_Link
 1612F         ; Grapheme_Link
-16D9D         ; Grapheme_Link
 
-# Total code points: 70
+# Total code points: 69
 
 # ================================================
 
@@ -13139,7 +13113,6 @@ AAF6          ; InCB; Linker
 09DC..09DD    ; InCB; Consonant
 09DF          ; InCB; Consonant
 09F0..09F1    ; InCB; Consonant
-09FF          ; InCB; Consonant
 0A95..0AA8    ; InCB; Consonant
 0AAA..0AB0    ; InCB; Consonant
 0AB2..0AB3    ; InCB; Consonant
@@ -13207,7 +13180,7 @@ ABC0..ABDA    ; InCB; Consonant
 11F04..11F10  ; InCB; Consonant
 11F12..11F33  ; InCB; Consonant
 
-# Total code points: 912
+# Total code points: 911
 
 # ================================================
 
@@ -13272,7 +13245,7 @@ ABC0..ABDA    ; InCB; Consonant
 0B3E          ; InCB; Extend
 0B3F          ; InCB; Extend
 0B41..0B44    ; InCB; Extend
-0B53..0B56    ; InCB; Extend
+0B55..0B56    ; InCB; Extend
 0B57          ; InCB; Extend
 0B62..0B63    ; InCB; Extend
 0B82          ; InCB; Extend
@@ -13582,8 +13555,6 @@ FF9E..FF9F    ; InCB; Extend
 1612D..1612F  ; InCB; Extend
 16AF0..16AF4  ; InCB; Extend
 16B30..16B36  ; InCB; Extend
-16D98         ; InCB; Extend
-16D9D         ; InCB; Extend
 16F4F         ; InCB; Extend
 16F8F..16F92  ; InCB; Extend
 16FE4         ; InCB; Extend
@@ -13625,6 +13596,6 @@ FF9E..FF9F    ; InCB; Extend
 E0020..E007F  ; InCB; Extend
 E0100..E01EF  ; InCB; Extend
 
-# Total code points: 2221
+# Total code points: 2217
 
 # EOF

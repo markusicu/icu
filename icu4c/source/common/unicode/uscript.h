@@ -521,13 +521,11 @@ typedef enum UScriptCode {
       /** @stable ICU 78 */
       USCRIPT_BERIA_ERFE                    = 208, /* Berf */
       /** @stable ICU 78 */
-      USCRIPT_CHISOI                        = 209, /* Chis */
+      USCRIPT_SIDETIC                       = 209, /* Sidt */
       /** @stable ICU 78 */
-      USCRIPT_SIDETIC                       = 210, /* Sidt */
+      USCRIPT_TAI_YO                        = 210, /* Tayo */
       /** @stable ICU 78 */
-      USCRIPT_TAI_YO                        = 211, /* Tayo */
-      /** @stable ICU 78 */
-      USCRIPT_TOLONG_SIKI                   = 212, /* Tols */
+      USCRIPT_TOLONG_SIKI                   = 211, /* Tols */
 
 #ifndef U_HIDE_DEPRECATED_API
     /**
@@ -536,7 +534,7 @@ typedef enum UScriptCode {
      *
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    USCRIPT_CODE_LIMIT    = 213
+    USCRIPT_CODE_LIMIT    = 212
 #endif  // U_HIDE_DEPRECATED_API
 } UScriptCode;
 

@@ -1,6 +1,6 @@
 # Original file:
 # IdnaMappingTable.txt
-# Date: 2025-05-01, 19:32:55 GMT
+# Date: 2025-07-25, 18:08:44 GMT
 # © 2025 Unicode®, Inc.
 # Unicode and the Unicode Logo are registered trademarks of Unicode, Inc. in the U.S. and other countries.
 # For terms of use and license, see https://www.unicode.org/terms_of_use.html
@@ -1080,8 +1080,7 @@
 # 09FC        valid                     # 10.0 BENGALI LETTER VEDIC ANUSVARA
 # 09FD        valid                     # 10.0 BENGALI ABBREVIATION SIGN
 # 09FE        valid                     # 11.0 BENGALI SANDHI MARK
-# 09FF        valid                     # 17.0 BENGALI LETTER SANSKRIT BA
-0A00          >FFFD                     # NA   <reserved-0A00>
+09FF..0A00    >FFFD                     # NA   <reserved-09FF>..<reserved-0A00>
 # 0A01        valid                     # 4.0  GURMUKHI SIGN ADAK BINDI
 # 0A02        valid                     # 1.1  GURMUKHI SIGN BINDI
 # 0A03        valid                     # 4.0  GURMUKHI SIGN VISARGA
@@ -1178,8 +1177,7 @@
 # 0B47..0B48  valid                     # 1.1  ORIYA VOWEL SIGN E..ORIYA VOWEL SIGN AI
 0B49..0B4A    >FFFD                     # NA   <reserved-0B49>..<reserved-0B4A>
 # 0B4B..0B4D  valid                     # 1.1  ORIYA VOWEL SIGN O..ORIYA SIGN VIRAMA
-0B4E..0B52    >FFFD                     # NA   <reserved-0B4E>..<reserved-0B52>
-# 0B53..0B54  valid                     # 17.0 ORIYA SIGN DOT ABOVE..ORIYA SIGN DOUBLE DOT ABOVE
+0B4E..0B54    >FFFD                     # NA   <reserved-0B4E>..<reserved-0B54>
 # 0B55        valid                     # 13.0 ORIYA SIGN OVERLINE
 # 0B56..0B57  valid                     # 1.1  ORIYA AI LENGTH MARK..ORIYA AU LENGTH MARK
 0B58..0B5B    >FFFD                     # NA   <reserved-0B58>..<reserved-0B5B>
@@ -6714,11 +6712,7 @@ FFFE..FFFF    >FFFD                     # 1.1  <noncharacter-FFFE>..<noncharacte
 # 16D40..16D6Cvalid                     # 16.0 KIRAT RAI SIGN ANUSVARA..KIRAT RAI SIGN SAAT
 # 16D6D..16D6Fvalid                     # 16.0 KIRAT RAI SIGN YUPI..KIRAT RAI DOUBLE DANDA
 # 16D70..16D79valid                     # 16.0 KIRAT RAI DIGIT ZERO..KIRAT RAI DIGIT NINE
-16D7A..16D7F  >FFFD                     # NA   <reserved-16D7A>..<reserved-16D7F>
-# 16D80..16D9Dvalid                     # 17.0 CHISOI LETTER A..CHISOI SIGN SISO
-16D9E..16D9F  >FFFD                     # NA   <reserved-16D9E>..<reserved-16D9F>
-# 16DA0..16DA9valid                     # 17.0 CHISOI DIGIT ZERO..CHISOI DIGIT NINE
-16DAA..16E3F  >FFFD                     # NA   <reserved-16DAA>..<reserved-16E3F>
+16D7A..16E3F  >FFFD                     # NA   <reserved-16D7A>..<reserved-16E3F>
 16E40         >16E60                    # 11.0 MEDEFAIDRIN CAPITAL LETTER M
 16E41         >16E61                    # 11.0 MEDEFAIDRIN CAPITAL LETTER S
 16E42         >16E62                    # 11.0 MEDEFAIDRIN CAPITAL LETTER V
@@ -8677,8 +8671,7 @@ FFFE..FFFF    >FFFD                     # 1.1  <noncharacter-FFFE>..<noncharacte
 # 1FAD7..1FAD9valid                     # 14.0 POURING LIQUID..JAR
 # 1FADA..1FADBvalid                     # 15.0 GINGER ROOT..PEA POD
 # 1FADC       valid                     # 16.0 ROOT VEGETABLE
-# 1FADD       valid                     # 17.0 APPLE CORE
-1FADE         >FFFD                     # NA   <reserved-1FADE>
+1FADD..1FADE  >FFFD                     # NA   <reserved-1FADD>..<reserved-1FADE>
 # 1FADF       valid                     # 16.0 SPLATTER
 # 1FAE0..1FAE7valid                     # 14.0 MELTING FACE..BUBBLES
 # 1FAE8       valid                     # 15.0 SHAKING FACE

@@ -223,7 +223,7 @@ const int32_t SCRIPT_PROPS[] = {
     0x11A5C | EXCLUSION,  // Soyo
     0x11A0B | EXCLUSION,  // Zanb
     0x1180B | EXCLUSION,  // Dogr
-    0x11D71 | LIMITED_USE,  // Gong
+    0x11D71 | EXCLUSION,  // Gong
     0x11EE5 | EXCLUSION,  // Maka
     0x16E40 | EXCLUSION | CASED,  // Medf
     0x10D12 | LIMITED_USE | RTL,  // Rohg
@@ -253,7 +253,6 @@ const int32_t SCRIPT_PROPS[] = {
     0x105C2 | EXCLUSION,  // Todr
     0x11392 | EXCLUSION,  // Tutg
     0x16EA1 | EXCLUSION | CASED,  // Berf
-    0x16D93 | EXCLUSION,  // Chis
     0x10950 | EXCLUSION | RTL,  // Sidt
     0x1E6D5 | EXCLUSION | LB_LETTERS,  // Tayo
     0x11DC6 | EXCLUSION,  // Tols

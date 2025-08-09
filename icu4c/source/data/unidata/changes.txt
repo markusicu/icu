@@ -63,7 +63,7 @@ https://unicode-org.atlassian.net/browse/CLDR-18283 BRS Unicode 17
 Markus:
 
 export UNIDATA_ROOT=~/unidata
-export UNICODE_DATA=$UNIDATA_ROOT/uni17/beta
+export UNICODE_DATA=$UNIDATA_ROOT/uni17/final
 export CLDR_SRC=~/cldr/uni/src
 export ICU_ROOT=~/icu/uni
 export ICU_SRC=$ICU_ROOT/src
@@ -77,7 +77,7 @@ export UNICODE_TOOLS=~/unitools/mine/src
 Elango:
 
 export UNIDATA_ROOT=~/oss/unidata
-export UNICODE_DATA=$UNIDATA_ROOT/uni17/beta
+export UNICODE_DATA=$UNIDATA_ROOT/uni17/final
 export CLDR_SRC=~/oss/cldr/mine/src
 export ICU_ROOT=~/oss/icu
 export ICU_SRC=$ICU_ROOT
@@ -198,7 +198,7 @@ to find out the latest `bazel` version, and
 copying that version number into the $ICU_SRC/.bazeliskrc config file.
 (Revert if you find incompatibilities, or, better, update our build & config files.)
 
-* TODO for mid-2025:
+* TODO:
   Error when upgrading from Bazel 7.2.1 to Bazel 8.2.1:
     ERROR: Skipping '//icu4c/source/tools/gennorm2': error loading package 'icu4c/source/tools/gennorm2': Unable to find package for @@[unknown repo 'rules_cc' requested from @@]//cc:defs.bzl: The repository '@@[unknown repo 'rules_cc' requested from @@]' could not be resolved: No repository visible as '@rules_cc' from main repository. Was the repository introduced in WORKSPACE? The WORKSPACE file is disabled by default in Bazel 8 (late 2024) and will be removed in Bazel 9 (late 2025), please migrate to Bzlmod. See https://bazel.build/external/migration.
   Need to revisit!
@@ -229,7 +229,6 @@ copying that version number into the $ICU_SRC/.bazeliskrc config file.
   They are tested at least in C++ intltest (e.g., against ppucd.txt).
   If these tests fail, then update the implementation and the tests.
 - Robin or Andy helps with RBBI & spoof check test failures
-  + TODO
 
 * collation: CLDR collation root, UCA DUCET
 
@@ -346,8 +345,6 @@ copying that version number into the $ICU_SRC/.bazeliskrc config file.
     cp -v BidiCharacterTest.txt BidiTest.txt IdnaTestV2.txt $ICU_SRC/icu4j/main/core/src/test/resources/com/ibm/icu/dev/data/unicode
     cp -v $UNICODE_DATA/ucd/CompositionExclusions.txt $ICU_SRC/icu4j/main/core/src/test/resources/com/ibm/icu/dev/data/unicode
 
-TODO
-
 * run & fix ICU4J tests
 
 *** API additions
@@ -361,6 +358,7 @@ TODO
       +11DE0..11DE9  ; Nd #  [10] TOLONG SIKI DIGIT ZERO..TOLONG SIKI DIGIT NINE
       +16DA0..16DA9  ; Nd #  [10] CHISOI DIGIT ZERO..CHISOI DIGIT NINE
   --> https://github.com/unicode-org/cldr/pull/4726
+      (FYI: Chisoi was later removed from Unicode 17)
 
 *** merge the Unicode update branch back onto the main branch
 - make sure that changes to Unicode tools are checked in:

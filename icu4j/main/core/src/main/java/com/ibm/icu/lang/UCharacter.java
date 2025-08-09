@@ -1348,19 +1348,17 @@ public final class UCharacter implements ECharacterCategory, ECharacterDirection
         /** @stable ICU 78 */
         public static final int CJK_UNIFIED_IDEOGRAPHS_EXTENSION_J_ID = 340; /*[323B0]*/
         /** @stable ICU 78 */
-        public static final int CHISOI_ID = 341; /*[16D80]*/
+        public static final int MISCELLANEOUS_SYMBOLS_SUPPLEMENT_ID = 341; /*[1CEC0]*/
         /** @stable ICU 78 */
-        public static final int MISCELLANEOUS_SYMBOLS_SUPPLEMENT_ID = 342; /*[1CEC0]*/
+        public static final int SHARADA_SUPPLEMENT_ID = 342; /*[11B60]*/
         /** @stable ICU 78 */
-        public static final int SHARADA_SUPPLEMENT_ID = 343; /*[11B60]*/
+        public static final int SIDETIC_ID = 343; /*[10940]*/
         /** @stable ICU 78 */
-        public static final int SIDETIC_ID = 344; /*[10940]*/
+        public static final int TAI_YO_ID = 344; /*[1E6C0]*/
         /** @stable ICU 78 */
-        public static final int TAI_YO_ID = 345; /*[1E6C0]*/
+        public static final int TANGUT_COMPONENTS_SUPPLEMENT_ID = 345; /*[18D80]*/
         /** @stable ICU 78 */
-        public static final int TANGUT_COMPONENTS_SUPPLEMENT_ID = 346; /*[18D80]*/
-        /** @stable ICU 78 */
-        public static final int TOLONG_SIKI_ID = 347; /*[11DB0]*/
+        public static final int TOLONG_SIKI_ID = 346; /*[11DB0]*/
 
         /**
          * One more than the highest normal UnicodeBlock value.
@@ -1369,7 +1367,7 @@ public final class UCharacter implements ECharacterCategory, ECharacterDirection
          * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
          */
         @Deprecated
-        public static final int COUNT = 348;
+        public static final int COUNT = 347;
 
         // blocks objects ---------------------------------------------------
 
@@ -2844,8 +2842,6 @@ public final class UCharacter implements ECharacterCategory, ECharacterDirection
         /** @stable ICU 78 */
         public static final UnicodeBlock CJK_UNIFIED_IDEOGRAPHS_EXTENSION_J =
                 new UnicodeBlock("CJK_UNIFIED_IDEOGRAPHS_EXTENSION_J", CJK_UNIFIED_IDEOGRAPHS_EXTENSION_J_ID);
-        /** @stable ICU 78 */
-        public static final UnicodeBlock CHISOI = new UnicodeBlock("CHISOI", CHISOI_ID);
         /** @stable ICU 78 */
         public static final UnicodeBlock MISCELLANEOUS_SYMBOLS_SUPPLEMENT =
                 new UnicodeBlock("MISCELLANEOUS_SYMBOLS_SUPPLEMENT", MISCELLANEOUS_SYMBOLS_SUPPLEMENT_ID);

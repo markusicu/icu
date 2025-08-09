@@ -40,7 +40,7 @@ static const Value VALUES_bc[23] = {
     Value(U_POP_DIRECTIONAL_ISOLATE, "PDI Pop_Directional_Isolate"),
 };
 
-static const Value VALUES_blk[348] = {
+static const Value VALUES_blk[347] = {
     Value(UBLOCK_NO_BLOCK, "NB No_Block"),
     Value(UBLOCK_BASIC_LATIN, "ASCII Basic_Latin"),
     Value(UBLOCK_LATIN_1_SUPPLEMENT, "Latin_1_Sup Latin_1_Supplement Latin_1"),
@@ -382,7 +382,6 @@ static const Value VALUES_blk[348] = {
     Value(UBLOCK_TULU_TIGALARI, "Tulu_Tigalari Tulu_Tigalari"),
     Value(UBLOCK_BERIA_ERFE, "Beria_Erfe Beria_Erfe"),
     Value(UBLOCK_CJK_UNIFIED_IDEOGRAPHS_EXTENSION_J, "CJK_Ext_J CJK_Unified_Ideographs_Extension_J"),
-    Value(UBLOCK_CHISOI, "Chisoi Chisoi"),
     Value(UBLOCK_MISCELLANEOUS_SYMBOLS_SUPPLEMENT, "Misc_Symbols_Sup Miscellaneous_Symbols_Supplement"),
     Value(UBLOCK_SHARADA_SUPPLEMENT, "Sharada_Sup Sharada_Supplement"),
     Value(UBLOCK_SIDETIC, "Sidetic Sidetic"),
@@ -692,7 +691,7 @@ static const Value VALUES_nt[4] = {
     Value(U_NT_NUMERIC, "Nu Numeric"),
 };
 
-static const Value VALUES_sc[213] = {
+static const Value VALUES_sc[212] = {
     Value(USCRIPT_COMMON, "Zyyy Common"),
     Value(USCRIPT_INHERITED, "Zinh Inherited Qaai"),
     Value(USCRIPT_ARABIC, "Arab Arabic"),
@@ -902,7 +901,6 @@ static const Value VALUES_sc[213] = {
     Value(USCRIPT_TODHRI, "Todr Todhri"),
     Value(USCRIPT_TULU_TIGALARI, "Tutg Tulu_Tigalari"),
     Value(USCRIPT_BERIA_ERFE, "Berf Beria_Erfe"),
-    Value(USCRIPT_CHISOI, "Chis Chisoi"),
     Value(USCRIPT_SIDETIC, "Sidt Sidetic"),
     Value(USCRIPT_TAI_YO, "Tayo Tai_Yo"),
     Value(USCRIPT_TOLONG_SIKI, "Tols Tolong_Siki"),
@@ -1133,7 +1131,7 @@ static const Value VALUES_bpt[3] = {
 };
 
 static const Value VALUES_InPC[16] = {
-    Value(U_INPC_NA, "NA NA"),
+    Value(U_INPC_NA, "NA Not_Applicable"),
     Value(U_INPC_BOTTOM, "Bottom Bottom"),
     Value(U_INPC_BOTTOM_AND_LEFT, "Bottom_And_Left Bottom_And_Left"),
     Value(U_INPC_BOTTOM_AND_RIGHT, "Bottom_And_Right Bottom_And_Right"),
@@ -1344,7 +1342,7 @@ static const Property PROPERTIES[121] = {
     Property(UCHAR_ID_COMPAT_MATH_CONTINUE, "ID_Compat_Math_Continue ID_Compat_Math_Continue"),
     Property(UCHAR_MODIFIER_COMBINING_MARK, "MCM Modifier_Combining_Mark"),
     Property(UCHAR_BIDI_CLASS, "bc Bidi_Class", VALUES_bc, 23),
-    Property(UCHAR_BLOCK, "blk Block", VALUES_blk, 348),
+    Property(UCHAR_BLOCK, "blk Block", VALUES_blk, 347),
     Property(UCHAR_CANONICAL_COMBINING_CLASS, "ccc Canonical_Combining_Class", VALUES_ccc, 58),
     Property(UCHAR_DECOMPOSITION_TYPE, "dt Decomposition_Type", VALUES_dt, 18),
     Property(UCHAR_EAST_ASIAN_WIDTH, "ea East_Asian_Width", VALUES_ea, 6),
@@ -1353,7 +1351,7 @@ static const Property PROPERTIES[121] = {
     Property(UCHAR_JOINING_TYPE, "jt Joining_Type", VALUES_jt, 6),
     Property(UCHAR_LINE_BREAK, "lb Line_Break", VALUES_lb, 49),
     Property(UCHAR_NUMERIC_TYPE, "nt Numeric_Type", VALUES_nt, 4),
-    Property(UCHAR_SCRIPT, "sc Script", VALUES_sc, 213),
+    Property(UCHAR_SCRIPT, "sc Script", VALUES_sc, 212),
     Property(UCHAR_HANGUL_SYLLABLE_TYPE, "hst Hangul_Syllable_Type", VALUES_hst, 6),
     Property(UCHAR_NFD_QUICK_CHECK, "NFD_QC NFD_Quick_Check", VALUES_NFD_QC, 2),
     Property(UCHAR_NFKD_QUICK_CHECK, "NFKD_QC NFKD_Quick_Check", VALUES_NFKD_QC, 2),

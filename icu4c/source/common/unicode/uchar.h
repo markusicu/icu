@@ -1992,19 +1992,17 @@ enum UBlockCode {
     /** @stable ICU 78 */
     UBLOCK_CJK_UNIFIED_IDEOGRAPHS_EXTENSION_J = 340, /*[323B0]*/
     /** @stable ICU 78 */
-    UBLOCK_CHISOI = 341, /*[16D80]*/
+    UBLOCK_MISCELLANEOUS_SYMBOLS_SUPPLEMENT = 341, /*[1CEC0]*/
     /** @stable ICU 78 */
-    UBLOCK_MISCELLANEOUS_SYMBOLS_SUPPLEMENT = 342, /*[1CEC0]*/
+    UBLOCK_SHARADA_SUPPLEMENT = 342, /*[11B60]*/
     /** @stable ICU 78 */
-    UBLOCK_SHARADA_SUPPLEMENT = 343, /*[11B60]*/
+    UBLOCK_SIDETIC = 343, /*[10940]*/
     /** @stable ICU 78 */
-    UBLOCK_SIDETIC = 344, /*[10940]*/
+    UBLOCK_TAI_YO = 344, /*[1E6C0]*/
     /** @stable ICU 78 */
-    UBLOCK_TAI_YO = 345, /*[1E6C0]*/
+    UBLOCK_TANGUT_COMPONENTS_SUPPLEMENT = 345, /*[18D80]*/
     /** @stable ICU 78 */
-    UBLOCK_TANGUT_COMPONENTS_SUPPLEMENT = 346, /*[18D80]*/
-    /** @stable ICU 78 */
-    UBLOCK_TOLONG_SIKI = 347, /*[11DB0]*/
+    UBLOCK_TOLONG_SIKI = 346, /*[11DB0]*/
 
 #ifndef U_HIDE_DEPRECATED_API
     /**
@@ -2013,7 +2011,7 @@ enum UBlockCode {
      *
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    UBLOCK_COUNT = 348,
+    UBLOCK_COUNT = 347,
 #endif  // U_HIDE_DEPRECATED_API
 
     /** @stable ICU 2.0 */
