@@ -177,8 +177,9 @@ inline void * allocateMemory(uint32_t size, UErrorCode *status)
 * before calling this method. destination not to be nullptr and has at least
 * size destinationlength.
 * @param destination target array
-* @param offset destination offset to add value
 * @param destinationlength target array size, return value for the new size
+* @param destOnHeap whether the destination array is heap-allocated
+* @param offset destination offset to add value
 * @param value to be added
 * @param increments incremental size expected
 * @param status output error if any, caller to check status before calling
@@ -187,21 +188,24 @@ inline void * allocateMemory(uint32_t size, UErrorCode *status)
 */
 static
 inline int32_t * addTouint32_tArray(int32_t    *destination,
-                                    uint32_t    offset,
                                     uint32_t   *destinationlength,
+                                    bool        destOnHeap,
+                                    uint32_t    offset,
                                     uint32_t    value,
                                     uint32_t    increments,
                                     UErrorCode *status)
 {
-    uint32_t newlength = *destinationlength;
-    if (offset + 1 == newlength) {
-        newlength += increments;
+    if (offset >= *destinationlength) {
+        uint32_t newlength = offset + increments;
         int32_t* temp = static_cast<int32_t*>(allocateMemory(
                                          sizeof(int32_t) * newlength, status));
         if (U_FAILURE(*status)) {
-            return nullptr;
+            return destination;
         }
         uprv_memcpy(temp, destination, sizeof(int32_t) * (size_t)offset);
+        if (destOnHeap) {
+            uprv_free(destination);
+        }
         *destinationlength = newlength;
         destination        = temp;
     }
@@ -217,8 +221,9 @@ inline int32_t * addTouint32_tArray(int32_t    *destination,
 * before calling this method. destination not to be nullptr and has at least
 * size destinationlength.
 * @param destination target array
-* @param offset destination offset to add value
 * @param destinationlength target array size, return value for the new size
+* @param destOnHeap whether the destination array is heap-allocated
+* @param offset destination offset to add value
 * @param value to be added
 * @param increments incremental size expected
 * @param status output error if any, caller to check status before calling
@@ -227,29 +232,28 @@ inline int32_t * addTouint32_tArray(int32_t    *destination,
 */
 static
 inline int64_t * addTouint64_tArray(int64_t    *destination,
-                                    uint32_t    offset,
                                     uint32_t   *destinationlength,
+                                    bool        destOnHeap,
+                                    uint32_t    offset,
                                     uint64_t    value,
                                     uint32_t    increments,
                                     UErrorCode *status)
 {
-    uint32_t newlength = *destinationlength;
-    if (offset + 1 == newlength) {
-        newlength += increments;
+    if (offset >= *destinationlength) {
+        uint32_t newlength = offset + increments;
         int64_t* temp = static_cast<int64_t*>(allocateMemory(
                                          sizeof(int64_t) * newlength, status));
-
         if (U_FAILURE(*status)) {
-            return nullptr;
+            return destination;
         }
-
         uprv_memcpy(temp, destination, sizeof(int64_t) * (size_t)offset);
+        if (destOnHeap) {
+            uprv_free(destination);
+        }
         *destinationlength = newlength;
         destination        = temp;
     }
-
     destination[offset] = value;
-
     return destination;
 }
 
@@ -299,22 +303,22 @@ inline void initializePatternCETable(UStringSearch *strsrch, UErrorCode *status)
            U_SUCCESS(*status)) {
         uint32_t newce = getCE(strsrch, ce);
         if (newce) {
-            int32_t *temp = addTouint32_tArray(cetable, offset, &cetablesize,
-                                  newce,
-                                  patternlength - ucol_getOffset(coleiter) + 1,
-                                  status);
-            if (U_FAILURE(*status)) {
-                return;
-            }
+            cetable = addTouint32_tArray(
+                cetable, &cetablesize, /* destOnHeap= */ cetable != pattern->cesBuffer,
+                offset, newce, patternlength - ucol_getOffset(coleiter) + 1, status);
             offset ++;
-            if (cetable != temp && cetable != pattern->cesBuffer) {
-                uprv_free(cetable);
-            }
-            cetable = temp;
         }
     }
 
-    cetable[offset]   = 0;
+    cetable = addTouint32_tArray(
+        cetable, &cetablesize, /* destOnHeap= */ cetable != pattern->cesBuffer,
+        offset, 0, 1, status);
+    if (U_FAILURE(*status)) {
+        if (cetable != pattern->cesBuffer) {
+            uprv_free(cetable);
+        }
+        return;
+    }
     pattern->ces       = cetable;
     pattern->cesLength = offset;
 }
@@ -368,25 +372,21 @@ inline void initializePatternPCETable(UStringSearch *strsrch,
     // **  whether a CE is signed or unsigned. For example, look at routine above this one.)
     while ((pce = iter.nextProcessed(nullptr, nullptr, status)) != UCOL_PROCESSED_NULLORDER &&
            U_SUCCESS(*status)) {
-        int64_t *temp = addTouint64_tArray(pcetable, offset, &pcetablesize,
-                              pce,
-                              patternlength - ucol_getOffset(coleiter) + 1,
-                              status);
-
-        if (U_FAILURE(*status)) {
-            return;
-        }
-
+        pcetable = addTouint64_tArray(
+            pcetable, &pcetablesize, /* destOnHeap= */ pcetable != pattern->pcesBuffer,
+            offset, pce, patternlength - ucol_getOffset(coleiter) + 1, status);
         offset += 1;
-
-        if (pcetable != temp && pcetable != pattern->pcesBuffer) {
-            uprv_free(pcetable);
-        }
-
-        pcetable = temp;
     }
 
-    pcetable[offset]   = 0;
+    pcetable = addTouint64_tArray(
+        pcetable, &pcetablesize, /* destOnHeap= */ pcetable != pattern->pcesBuffer,
+        offset, 0, 1, status);
+    if (U_FAILURE(*status)) {
+        if (pcetable != pattern->pcesBuffer) {
+            uprv_free(pcetable);
+        }
+        return;
+    }
     pattern->pces       = pcetable;
     pattern->pcesLength = offset;
 }
