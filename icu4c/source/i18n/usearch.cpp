@@ -152,61 +152,43 @@ inline int32_t getCE(const UStringSearch *strsrch, uint32_t sourcece)
 }
 
 /**
-* Allocate a memory and returns nullptr if it failed.
-* Internal method, status assumed to be a success.
-* @param size to allocate
-* @param status output error if any, caller to check status before calling
-*               method, status assumed to be success when passed in.
-* @return newly allocated array, nullptr otherwise
-*/
-static
-inline void * allocateMemory(uint32_t size, UErrorCode *status)
-{
-    uint32_t* result = static_cast<uint32_t*>(uprv_malloc(size));
-    if (result == nullptr) {
-        *status = U_MEMORY_ALLOCATION_ERROR;
-    }
-    return result;
-}
-
-/**
 * Adds a uint32_t value to a destination array.
 * Creates a new array if we run out of space. The caller will have to
 * manually deallocate the newly allocated array.
-* Internal method, status assumed to be success, caller has to check status
-* before calling this method. destination not to be nullptr and has at least
-* size destinationlength.
+* destination not to be nullptr and has at least size destinationCapacity.
 * @param destination target array
-* @param destinationlength target array size, return value for the new size
+* @param destinationCapacity target array size, return value for the new size
 * @param destOnHeap whether the destination array is heap-allocated
 * @param offset destination offset to add value
 * @param value to be added
 * @param increments incremental size expected
-* @param status output error if any, caller to check status before calling
-*               method, status assumed to be success when passed in.
+* @param status output error if any
 * @return new destination array, destination if there was no new allocation
 */
 static
 inline int32_t * addTouint32_tArray(int32_t    *destination,
-                                    uint32_t   *destinationlength,
+                                    uint32_t   *destinationCapacity,
                                     bool        destOnHeap,
                                     uint32_t    offset,
                                     uint32_t    value,
                                     uint32_t    increments,
                                     UErrorCode *status)
 {
-    if (offset >= *destinationlength) {
+    if (U_FAILURE(*status)) {
+        return destination;
+    }
+    if (offset >= *destinationCapacity) {
         uint32_t newlength = offset + increments;
-        int32_t* temp = static_cast<int32_t*>(allocateMemory(
-                                         sizeof(int32_t) * newlength, status));
-        if (U_FAILURE(*status)) {
+        int32_t* temp = static_cast<int32_t*>(uprv_malloc(sizeof(int32_t) * newlength));
+        if (temp == nullptr) {
+            *status = U_MEMORY_ALLOCATION_ERROR;
             return destination;
         }
         uprv_memcpy(temp, destination, sizeof(int32_t) * (size_t)offset);
         if (destOnHeap) {
             uprv_free(destination);
         }
-        *destinationlength = newlength;
+        *destinationCapacity = newlength;
         destination        = temp;
     }
     destination[offset] = value;
@@ -217,40 +199,40 @@ inline int32_t * addTouint32_tArray(int32_t    *destination,
 * Adds a uint64_t value to a destination array.
 * Creates a new array if we run out of space. The caller will have to
 * manually deallocate the newly allocated array.
-* Internal method, status assumed to be success, caller has to check status
-* before calling this method. destination not to be nullptr and has at least
-* size destinationlength.
+* destination not to be nullptr and has at least size destinationCapacity.
 * @param destination target array
-* @param destinationlength target array size, return value for the new size
+* @param destinationCapacity target array size, return value for the new size
 * @param destOnHeap whether the destination array is heap-allocated
 * @param offset destination offset to add value
 * @param value to be added
 * @param increments incremental size expected
-* @param status output error if any, caller to check status before calling
-*               method, status assumed to be success when passed in.
+* @param status output error if any
 * @return new destination array, destination if there was no new allocation
 */
 static
 inline int64_t * addTouint64_tArray(int64_t    *destination,
-                                    uint32_t   *destinationlength,
+                                    uint32_t   *destinationCapacity,
                                     bool        destOnHeap,
                                     uint32_t    offset,
                                     uint64_t    value,
                                     uint32_t    increments,
                                     UErrorCode *status)
 {
-    if (offset >= *destinationlength) {
+    if (U_FAILURE(*status)) {
+        return destination;
+    }
+    if (offset >= *destinationCapacity) {
         uint32_t newlength = offset + increments;
-        int64_t* temp = static_cast<int64_t*>(allocateMemory(
-                                         sizeof(int64_t) * newlength, status));
-        if (U_FAILURE(*status)) {
+        int64_t* temp = static_cast<int64_t*>(uprv_malloc(sizeof(int64_t) * newlength));
+        if (temp == nullptr) {
+            *status = U_MEMORY_ALLOCATION_ERROR;
             return destination;
         }
         uprv_memcpy(temp, destination, sizeof(int64_t) * (size_t)offset);
         if (destOnHeap) {
             uprv_free(destination);
         }
-        *destinationlength = newlength;
+        *destinationCapacity = newlength;
         destination        = temp;
     }
     destination[offset] = value;
