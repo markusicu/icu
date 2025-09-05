@@ -2462,7 +2462,7 @@ void StringSearchTest::TestBug22775() {
         u"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         u"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa響");
     LocalPointer<RuleBasedCollator> collator(
-        static_cast<RuleBasedCollator *>(
+        dynamic_cast<RuleBasedCollator *>(
             Collator::createInstance(Locale::getUS(), errorCode)),
         errorCode);
     collator->setAttribute(UCOL_STRENGTH, UCOL_PRIMARY, errorCode);
