@@ -2465,6 +2465,8 @@ void StringSearchTest::TestBug22775() {
         dynamic_cast<RuleBasedCollator *>(
             Collator::createInstance(Locale::getUS(), errorCode)),
         errorCode);
+    // Check that we have a collator before dereferencing.
+    if (errorCode.errDataIfFailureAndReset()) { return; }
     collator->setAttribute(UCOL_STRENGTH, UCOL_PRIMARY, errorCode);
     StringCharacterIterator text(u" ");
     StringSearch stringSearch(pattern, text, collator.getAlias(), nullptr, errorCode);
