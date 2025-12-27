@@ -1,7 +1,7 @@
 ---
 layout: default
 title: CharacterIterator
-nav_order: 3
+nav_order: 30
 parent: Chars and Strings
 ---
 <!--
