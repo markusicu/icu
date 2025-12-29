@@ -11,6 +11,17 @@ License & terms of use: http://www.unicode.org/copyright.html
 
 # CharacterIterator Class
 
+## Modern APIs
+
+### Modern C++
+Starting with ICU 78, ICU4C has [C++ header-only APIs](../icu4c/header-only.md)
+for conveniently iterating over the code points of a Unicode string in any standard encoding form (UTF-8/16/32).
+See [C++ Code Point Iterators](cpp-code-point-iterator.md).
+
+### Modern Java
+Starting with Java 8, interface `CharSequence` (and thus `String` and `StringBuilder`)
+has a `codePoints()` method which returns an `IntStream` of Unicode code points.
+
 ## Overview
 
 CharacterIterator is the abstract base class that defines a protocol for
