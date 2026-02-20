@@ -85,6 +85,7 @@ int32_t rangeLoop16(std::u16string_view s) {
 This has a number of benefits compared with the C macros:
 - These C++ APIs provide iterator and range adaptors that are
   compatible with the C++ standard library, and thus look and feel natural.
+  They are composable with standard library utilities, especially in C++20 and later.
 - Instead of raw pointer+length manipulation,
   they work with a large variety of code unit iterators.
   - This makes it possible to use constrained inputs without having to use an intermediate buffer of code units.
@@ -92,6 +93,32 @@ This has a number of benefits compared with the C macros:
 - The same types and functions work for any of UTF-8/16/32.\
   (There are different macros for UTF-8 vs. UTF-16, and none for UTF-32.)
 - The APIs offer a number of options for a good fit for many use cases.
+
+Here is an example for composing a `utfStringCodePoints()` range adaptor
+with C++20 language and standard library features:
+```c++
+auto codePoint = [](const auto &codeUnits) { return codeUnits.codePoint(); };
+const std::u16string text = u"𒂍𒁾𒁀𒀀𒂠 𒉌𒁺𒉈𒂗\n"
+                                u"𒂍𒁾𒁀𒀀 𒀀𒈾𒀀𒀭 𒉌𒀝\n"
+                                u"𒁾𒈬 𒉌𒋃 𒃻𒅗𒁺𒈬 𒉌𒅥\n";
+auto lines2sqq = text | std::ranges::views::lazy_split(u'\n') | std::views::drop(1);
+auto codeUnits = *lines2sqq.begin();
+assertTrue(std::ranges::equal(
+        utfStringCodePoints<char32_t, UTF_BEHAVIOR_FFFD>(codeUnits) |
+                std::ranges::views::transform(codePoint),
+        std::u32string_view(U"𒂍𒁾𒁀𒀀 𒀀𒈾𒀀𒀭 𒉌𒀝")));
+```
+
+<!--
+Simplified example from icu4c/source/test/intltest/utfiteratortest.cpp
+
+Eggsplanation: Split lines on U+000A without decoding, then decode the second line.
+In case anyone needs to read the Sumerian aloud, the three lines on the slide read
+edubbaʾaše iŋennen / edubbaʾa anam iak / dubŋu išid niŋzugubŋu igu;
+translation:
+I went to school. / what did you do at school? / I recited my tablet and ate my lunch.
+See https://cdli.earth/artifacts/464238/reader/213101
+-->
 
 ### Output: CodeUnits
 
@@ -121,7 +148,7 @@ public:
 
 The `CP32` code unit type is a required template parameter. It must be a 32-bit integer value, but it can be signed or unsigned.
 You choose the code point integer type to fit your use case:
-It is typically an ICU `UChar32` (=int32_t / signed) or a `char32_t` or a `uint32_t` (both unsigned).
+It is typically an ICU `UChar32` (=`int32_t` / signed) or a `char32_t` or a `uint32_t` (both unsigned).
 
 Pick any of these if you do not read the code point value.
 
@@ -226,7 +253,26 @@ The API supports “sentinel” types that differ from the code unit iterator,
 as long as the two can be compared.
 
 An example of an `input_iterator` is the standard-input stream.
-See the API docs for a code example for that.
+The API docs include this code example for that:
+
+```c++20
+template<typename InputStream>  // some istream or streambuf
+std::u32string cpFromInput(InputStream &in) {
+    // This is a single-pass input_iterator.
+    std::istreambuf_iterator bufIter(in);
+    std::istreambuf_iterator<typename InputStream::char_type> bufLimit;
+    auto iter = utfIterator<char32_t, UTF_BEHAVIOR_FFFD>(bufIter);
+    auto limit = utfIterator<char32_t, UTF_BEHAVIOR_FFFD>(bufLimit);
+    std::u32string s32;
+    for (; iter != limit; ++iter) {
+        s32.push_back(iter->codePoint());
+    }
+    return s32;
+}
+
+std::u32string cpFromStdin() { return cpFromInput(std::cin); }
+std::u32string cpFromWideStdin() { return cpFromInput(std::wcin); }
+```
 
 ### Compiled code size
 
