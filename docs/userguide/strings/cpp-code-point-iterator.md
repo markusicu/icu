@@ -67,7 +67,7 @@ int32_t rangeLoop16(std::u16string_view s) {
 }
 ```
 
-## C++ code point iterators
+## C++ code point iterators and ranges
 
 The `unicode/utfiterator.h` APIs let you wrap the string in a “range” object that provides iterators over the string’s code points. You could rewrite the C macro example above like this:
 
@@ -83,7 +83,7 @@ int32_t rangeLoop16(std::u16string_view s) {
 ```
 
 This has a number of benefits compared with the C macros:
-- These C++ APIs provide iterators and range adaptors that are
+- These C++ APIs provide iterator and range adaptors that are
   compatible with the C++ standard library, and thus look and feel natural.
 - Instead of raw pointer+length manipulation,
   they work with a large variety of code unit iterators.
@@ -204,7 +204,7 @@ with operators like `*` and `->` for value access,
 `++` and `--` for iteration, and `==` for comparing with iteration limits.
 In fact, pointers to code units work as inputs to `UTFIterator`. However, they are not required.
 
-When suppyling a pointer or a `contiguous_iterator` for the code units, then
+When supplying a pointer or a `contiguous_iterator` for the code units, then
 `CodeUnits` supports the `stringView()` function.
 
 When supplying at least a `bidirectional_iterator` for the code units, then the `UTFIterator` is also a `bidirectional_iterator`,
