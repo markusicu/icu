@@ -3,6 +3,7 @@
 package com.ibm.icu.number;
 
 import com.ibm.icu.util.Currency;
+import java.math.MathContext;
 
 /**
  * A class that defines a rounding strategy parameterized by a currency to be used when formatting
@@ -16,6 +17,10 @@ import com.ibm.icu.util.Currency;
 public abstract class CurrencyPrecision extends Precision {
 
     /* package-private */ CurrencyPrecision() {}
+
+    CurrencyPrecision(CurrencyPrecision other, MathContext newMode, Precision.OverrideTZD newTZD) {
+        super(other, newMode, newTZD);
+    }
 
     /**
      * Associates a currency with this rounding strategy.
@@ -39,7 +44,7 @@ public abstract class CurrencyPrecision extends Precision {
             Precision retval = constructFromCurrency(this, currency);
             // trailingZeroDisplay returns a clone if trailingZeroDisplay differs,
             // preventing data races on shared static instances (e.g. FIXED_FRAC_0).
-            return retval.trailingZeroDisplay(trailingZeroDisplay);
+            return retval.trailingZeroDisplay(getTrailingZeroDisplay());
         } else {
             throw new IllegalArgumentException("Currency must not be null");
         }

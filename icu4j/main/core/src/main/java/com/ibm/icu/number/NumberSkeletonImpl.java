@@ -1635,7 +1635,7 @@ class NumberSkeletonImpl {
                 }
             }
 
-            if (macros.precision.trailingZeroDisplay == TrailingZeroDisplay.HIDE_IF_WHOLE) {
+            if (macros.precision.getTrailingZeroDisplay() == TrailingZeroDisplay.HIDE_IF_WHOLE) {
                 sb.append("/w");
             }
 
