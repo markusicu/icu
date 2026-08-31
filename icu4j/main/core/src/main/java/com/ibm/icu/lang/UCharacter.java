@@ -183,6 +183,11 @@ public final class UCharacter implements ECharacterCategory, ECharacterDirection
         // block id corresponding to icu4c -----------------------------------
 
         /**
+         * @stable ICU 79
+         */
+        public static final int NO_BLOCK_ID = 0;
+
+        /**
          * @stable ICU 2.4
          */
         public static final int INVALID_CODE_ID = -1;
@@ -2035,7 +2040,7 @@ public final class UCharacter implements ECharacterCategory, ECharacterDirection
         /**
          * @stable ICU 2.6
          */
-        public static final UnicodeBlock NO_BLOCK = new UnicodeBlock("NO_BLOCK", 0);
+        public static final UnicodeBlock NO_BLOCK = new UnicodeBlock("NO_BLOCK", NO_BLOCK_ID);
 
         /**
          * @stable ICU 2.4

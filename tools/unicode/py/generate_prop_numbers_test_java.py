@@ -95,7 +95,7 @@ public class PropNumbersTest extends CoreTestFmwk {
           print(f'assertNotNull("{property}={value}", {icu4j_qualified_name});', file=out)
         else:
           print(f'assertEquals("{property}={value}", intValue({icu4j_qualified_name}), {number});', file=out)
-          if property == "blk" and value != "NB":
+          if property == "blk":
             print(f'assertEquals("{property}={value}", {icu4j_qualified_name}_ID, {number});', file=out)
   print("""
     }

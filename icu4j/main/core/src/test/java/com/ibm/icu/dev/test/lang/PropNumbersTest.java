@@ -253,6 +253,7 @@ public class PropNumbersTest extends CoreTestFmwk {
         assertEquals("blk", UProperty.BLOCK, 4097);
         // ICU4C UBLOCK_NO_BLOCK:
         assertEquals("blk=NB", intValue(UnicodeBlock.NO_BLOCK), 0);
+        assertEquals("blk=NB", UnicodeBlock.NO_BLOCK_ID, 0);
         // ICU4C UBLOCK_BASIC_LATIN:
         assertEquals("blk=ASCII", intValue(UnicodeBlock.BASIC_LATIN), 1);
         assertEquals("blk=ASCII", UnicodeBlock.BASIC_LATIN_ID, 1);
